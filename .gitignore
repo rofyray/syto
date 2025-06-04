@@ -7,6 +7,7 @@ yarn-error.log*
 pnpm-debug.log*
 lerna-debug.log*
 
+# Dependencies
 node_modules
 dist
 dist-ssr
@@ -22,4 +23,19 @@ dist-ssr
 *.njsproj
 *.sln
 *.sw?
+
+# Environment variables
 .env
+.env.*
+
+# Build output
+build
+out
+
+# Coverage directory
+coverage
+
+# Misc
+*.pem
+.DS_Store
+Thumbs.db
