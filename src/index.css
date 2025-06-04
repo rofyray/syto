@@ -1,0 +1,146 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  :root {
+    --background: 0 0% 96%;
+    --foreground: 0 0% 20%;
+    
+    --ghana-red: 0 68% 50%;
+    --ghana-gold: 43 100% 52%;
+    --ghana-green: 122 39% 49%;
+    --ghana-black: 0 0% 20%;
+    
+    --card: 0 0% 100%;
+    --card-foreground: 0 0% 20%;
+    
+    --popover: 0 0% 100%;
+    --popover-foreground: 0 0% 20%;
+    
+    --primary: 199 89% 48%;
+    --primary-foreground: 0 0% 98%;
+    
+    --secondary: 220 14% 66%;
+    --secondary-foreground: 0 0% 98%;
+    
+    --muted: 220 14% 96%;
+    --muted-foreground: 220 8% 46%;
+    
+    --accent: 43 96% 50%;
+    --accent-foreground: 0 0% 20%;
+    
+    --destructive: 0 84% 60%;
+    --destructive-foreground: 0 0% 98%;
+    
+    --border: 220 13% 91%;
+    --input: 220 13% 91%;
+    --ring: 224 71% 45%;
+    
+    --radius: 0.5rem;
+  }
+  
+  .dark {
+    --background: 0 0% 10%;
+    --foreground: 0 0% 88%;
+    
+    --ghana-red: 0 100% 27%;
+    --ghana-gold: 43 84% 38%;
+    --ghana-green: 120 100% 20%;
+    --ghana-black: 0 0% 10%;
+    
+    --card: 0 0% 15%;
+    --card-foreground: 0 0% 88%;
+    
+    --popover: 0 0% 15%;
+    --popover-foreground: 0 0% 88%;
+    
+    --primary: 199 89% 30%;
+    --primary-foreground: 0 0% 98%;
+    
+    --secondary: 220 14% 30%;
+    --secondary-foreground: 0 0% 98%;
+    
+    --muted: 220 14% 20%;
+    --muted-foreground: 220 8% 70%;
+    
+    --accent: 43 84% 38%;
+    --accent-foreground: 0 0% 98%;
+    
+    --destructive: 0 84% 30%;
+    --destructive-foreground: 0 0% 98%;
+    
+    --border: 220 13% 20%;
+    --input: 220 13% 20%;
+    --ring: 224 71% 45%;
+  }
+}
+
+@layer base {
+  * {
+    @apply border-border;
+  }
+  
+  body {
+    @apply bg-background text-foreground;
+    font-feature-settings: "rlig" 1, "calt" 1;
+    font-optical-sizing: auto;
+    font-variation-settings:
+      "slnt" 0,
+      "wdth" 100,
+      "GRAD" 0,
+      "XOPQ" 96,
+      "XTRA" 468,
+      "YOPQ" 79,
+      "YTAS" 750,
+      "YTDE" -203,
+      "YTFI" 738,
+      "YTLC" 514,
+      "YTUC" 712;
+  }
+  
+  h1, h2, h3, h4, h5, h6 {
+    @apply font-heading font-normal tracking-tight;
+  }
+  
+  h1 {
+    @apply text-3xl md:text-4xl;
+    line-height: 1.2;
+  }
+  
+  h2 {
+    @apply text-2xl md:text-3xl;
+    line-height: 1.2;
+  }
+  
+  h3 {
+    @apply text-xl md:text-2xl;
+    line-height: 1.2;
+  }
+  
+  p {
+    line-height: 1.5;
+  }
+}
+
+/* Custom animations */
+@keyframes pulse-gentle {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.8; }
+}
+
+.animate-pulse-gentle {
+  animation: pulse-gentle 2s ease-in-out infinite;
+}
+
+/* Transitions */
+.theme-transition {
+  @apply transition-colors duration-300;
+}
+
+/* Custom utilities */
+@layer utilities {
+  .focus-ring {
+    @apply focus:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2;
+  }
+}
