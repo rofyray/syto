@@ -29,9 +29,13 @@ export function AuthForm({ isLogin = true }: AuthFormProps) {
     try {
       if (showForgotPassword) {
         // Handle password reset with correct redirect URL
-        // Use the current domain (production or localhost)
-        const currentDomain = window.location.origin;
-        const redirectUrl = `${currentDomain}/reset-password`;
+        // Determine the correct redirect URL based on environment
+        const isProduction = window.location.hostname !== 'localhost';
+        const redirectUrl = isProduction 
+          ? 'https://syto.online/reset-password'
+          : `${window.location.origin}/reset-password`;
+        
+        console.log('Sending password reset with redirect URL:', redirectUrl);
         
         const { error } = await supabase.auth.resetPasswordForEmail(email, {
           redirectTo: redirectUrl,
