@@ -28,9 +28,11 @@ export function AuthForm({ isLogin = true }: AuthFormProps) {
 
     try {
       if (showForgotPassword) {
-        // Handle password reset
+        // Handle password reset with correct redirect URL
+        const redirectUrl = window.location.origin + "/reset-password";
+        
         const { error } = await supabase.auth.resetPasswordForEmail(email, {
-          redirectTo: `${window.location.origin}/reset-password`,
+          redirectTo: redirectUrl,
         });
 
         if (error) throw error;
