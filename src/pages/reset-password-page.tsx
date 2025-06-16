@@ -172,7 +172,7 @@ export function ResetPasswordPage() {
         <div className="mt-4 text-center text-sm">
           <a
             href="/login"
-            className="font-medium text-ghana-green hover:text-ghana-green-dark dark:text-ghana-green dark:hover:text-ghana-green"
+            className="font-medium text-ghana-green hover:text-ghana-green-dark dark:text-ghana-green dark:hover:text-ghana-green transition-colors"
           >
             Back to Sign In
           </a>

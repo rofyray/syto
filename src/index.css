@@ -121,6 +121,16 @@
   p {
     line-height: 1.5;
   }
+  
+  /* Remove underlines from all links by default */
+  a {
+    text-decoration: none;
+  }
+  
+  /* Only show underlines on hover for links with the underline class */
+  a.underline {
+    text-decoration: underline;
+  }
 }
 
 /* Custom animations */

@@ -254,7 +254,7 @@ export function AuthForm({ isLogin = true }: AuthFormProps) {
             <button
               type="button"
               onClick={handleBackToLogin}
-              className="font-medium text-ghana-green hover:text-ghana-green-dark dark:text-ghana-green dark:hover:text-ghana-green underline"
+              className="font-medium text-ghana-green hover:text-ghana-green-dark dark:text-ghana-green dark:hover:text-ghana-green transition-colors"
             >
               Back to Sign In
             </button>
@@ -263,7 +263,7 @@ export function AuthForm({ isLogin = true }: AuthFormProps) {
               <button
                 type="button"
                 onClick={() => setShowForgotPassword(true)}
-                className="font-medium text-ghana-green hover:text-ghana-green-dark dark:text-ghana-green dark:hover:text-ghana-green underline"
+                className="font-medium text-ghana-green hover:text-ghana-green-dark dark:text-ghana-green dark:hover:text-ghana-green transition-colors"
               >
                 Forgot Password?
               </button>
@@ -271,7 +271,7 @@ export function AuthForm({ isLogin = true }: AuthFormProps) {
                 Don't have an account?{" "}
                 <a
                   href="/signup"
-                  className="font-medium text-ghana-green hover:text-ghana-green-dark dark:text-ghana-green dark:hover:text-ghana-green"
+                  className="font-medium text-ghana-green hover:text-ghana-green-dark dark:text-ghana-green dark:hover:text-ghana-green transition-colors"
                 >
                   Create one
                 </a>
@@ -282,7 +282,7 @@ export function AuthForm({ isLogin = true }: AuthFormProps) {
               Already have an account?{" "}
               <a
                 href="/login"
-                className="font-medium text-ghana-green hover:text-ghana-green-dark dark:text-ghana-green dark:hover:text-ghana-green"
+                className="font-medium text-ghana-green hover:text-ghana-green-dark dark:text-ghana-green dark:hover:text-ghana-green transition-colors"
               >
                 Sign in
               </a>
