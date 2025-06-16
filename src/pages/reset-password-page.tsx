@@ -15,14 +15,49 @@ export function ResetPasswordPage() {
   const navigate = useNavigate();
 
   useEffect(() => {
-    // Check if we have the required tokens from the URL
-    const accessToken = searchParams.get('access_token');
-    const refreshToken = searchParams.get('refresh_token');
-    
-    if (!accessToken || !refreshToken) {
-      setError("Invalid reset link. Please request a new password reset.");
-    }
-  }, [searchParams]);
+    // Handle the auth callback from Supabase
+    const handleAuthCallback = async () => {
+      const hashParams = new URLSearchParams(window.location.hash.substring(1));
+      const accessToken = hashParams.get('access_token');
+      const refreshToken = hashParams.get('refresh_token');
+      const type = hashParams.get('type');
+      
+      // Check for errors in the URL
+      const errorParam = hashParams.get('error');
+      const errorDescription = hashParams.get('error_description');
+      
+      if (errorParam) {
+        if (errorParam === 'access_denied' && errorDescription?.includes('expired')) {
+          setError("The password reset link has expired. Please request a new one.");
+        } else {
+          setError(errorDescription || "An error occurred with the reset link.");
+        }
+        return;
+      }
+      
+      // If we have tokens and it's a recovery type, set the session
+      if (accessToken && refreshToken && type === 'recovery') {
+        try {
+          const { error } = await supabase.auth.setSession({
+            access_token: accessToken,
+            refresh_token: refreshToken,
+          });
+          
+          if (error) {
+            throw error;
+          }
+          
+          // Clear the URL hash to clean up the interface
+          window.history.replaceState({}, document.title, window.location.pathname);
+        } catch (error: any) {
+          console.error('Error setting session:', error);
+          setError("Invalid or expired reset link. Please request a new password reset.");
+        }
+      }
+    };
+
+    handleAuthCallback();
+  }, []);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -53,8 +88,9 @@ export function ResetPasswordPage() {
 
       setSuccess("Password updated successfully! Redirecting to login...");
       
-      // Redirect to login after 2 seconds
-      setTimeout(() => {
+      // Sign out the user and redirect to login after 2 seconds
+      setTimeout(async () => {
+        await supabase.auth.signOut();
         navigate("/login");
       }, 2000);
     } catch (error: any) {
