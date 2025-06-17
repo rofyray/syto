@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { useNavigate, useSearchParams } from "react-router-dom";
+import { useNavigate } from "react-router-dom";
 import { supabase } from "@/lib/supabase";
 import { Button } from "@/components/ui/button";
 import { Logo } from "@/components/logo";
@@ -11,7 +11,7 @@ export function ResetPasswordPage() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
-  const [searchParams] = useSearchParams();
+  const [isInRecoverySession, setIsInRecoverySession] = useState(false);
   const navigate = useNavigate();
 
   useEffect(() => {
@@ -56,8 +56,37 @@ export function ResetPasswordPage() {
       }
     };
 
+    // Listen for auth state changes
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
+      console.log('Auth state change:', event, session);
+      
+      if (event === 'PASSWORD_RECOVERY') {
+        setIsInRecoverySession(true);
+        setError(null);
+        console.log('Password recovery session established');
+      } else if (event === 'USER_UPDATED') {
+        if (isInRecoverySession) {
+          setLoading(false);
+          setSuccess("Password updated successfully!");
+          
+          // Sign out the user and redirect to login after 2 seconds
+          setTimeout(async () => {
+            await supabase.auth.signOut();
+            navigate("/login");
+          }, 2000);
+        }
+      } else if (event === 'SIGNED_OUT') {
+        setIsInRecoverySession(false);
+      }
+    });
+
     handleAuthCallback();
-  }, []);
+
+    // Cleanup subscription on unmount
+    return () => {
+      subscription.unsubscribe();
+    };
+  }, [navigate, isInRecoverySession]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -79,6 +108,13 @@ export function ResetPasswordPage() {
       return;
     }
 
+    // Check if we're in a valid recovery session
+    if (!isInRecoverySession) {
+      setError("Invalid recovery session. Please click the reset link from your email again.");
+      setLoading(false);
+      return;
+    }
+
     try {
       const { error } = await supabase.auth.updateUser({
         password: password
@@ -86,16 +122,10 @@ export function ResetPasswordPage() {
 
       if (error) throw error;
 
-      setSuccess("Password updated successfully! Redirecting to login...");
-      
-      // Sign out the user and redirect to login after 2 seconds
-      setTimeout(async () => {
-        await supabase.auth.signOut();
-        navigate("/login");
-      }, 2000);
+      // Don't set loading to false here - let the USER_UPDATED event handle it
+      // The success state will be set by the auth state change listener
     } catch (error: any) {
       setError(error.message || "An error occurred while updating your password");
-    } finally {
       setLoading(false);
     }
   };
@@ -124,95 +154,97 @@ export function ResetPasswordPage() {
           </div>
         )}
 
-        {success && (
-          <div className="rounded-md bg-success-100 p-3 text-sm text-success-600 dark:bg-success-900/30 dark:text-success-400">
-            {success}
-          </div>
+        {success ? (
+          <>
+            <div className="rounded-md bg-success-100 p-3 text-sm text-success-600 dark:bg-success-900/30 dark:text-success-400">
+              {success}
+            </div>
+            <div className="mt-4 text-center">
+              <Button
+                onClick={() => navigate("/login")}
+                className="bg-ghana-green hover:bg-ghana-green-dark dark:bg-ghana-green-dark dark:hover:bg-ghana-green text-white"
+                variant="ghana"
+              >
+                Back to Sign In
+              </Button>
+            </div>
+          </>
+        ) : (
+          <form onSubmit={handleSubmit} className="space-y-4">
+            <div className="space-y-2">
+              <label
+                className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70"
+                htmlFor="password"
+              >
+                New Password
+              </label>
+              <input
+                className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring"
+                id="password"
+                type="password"
+                placeholder="Enter new password"
+                required
+                minLength={6}
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+              />
+            </div>
+
+            <div className="space-y-2">
+              <label
+                className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70"
+                htmlFor="confirmPassword"
+              >
+                Confirm New Password
+              </label>
+              <input
+                className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring"
+                id="confirmPassword"
+                type="password"
+                placeholder="Confirm new password"
+                required
+                minLength={6}
+                value={confirmPassword}
+                onChange={(e) => setConfirmPassword(e.target.value)}
+              />
+            </div>
+
+            <Button
+              type="submit"
+              className="w-full bg-ghana-green hover:bg-ghana-green-dark dark:bg-ghana-green-dark dark:hover:bg-ghana-green text-white"
+              variant="ghana"
+              disabled={loading || !password || !confirmPassword}
+            >
+              {loading ? (
+                <span className="flex items-center gap-2">
+                  <svg
+                    className="h-4 w-4 animate-spin"
+                    xmlns="http://www.w3.org/2000/svg"
+                    fill="none"
+                    viewBox="0 0 24 24"
+                  >
+                    <circle
+                      className="opacity-25"
+                      cx="12"
+                      cy="12"
+                      r="10"
+                      stroke="currentColor"
+                      strokeWidth="4"
+                    ></circle>
+                    <path
+                      className="opacity-75"
+                      fill="currentColor"
+                      d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
+                    ></path>
+                  </svg>
+                  Updating Password...
+                </span>
+              ) : (
+                "Update Password"
+              )}
+            </Button>
+          </form>
         )}
-
-        <form onSubmit={handleSubmit} className="space-y-4">
-          <div className="space-y-2">
-            <label
-              className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70"
-              htmlFor="password"
-            >
-              New Password
-            </label>
-            <input
-              className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring"
-              id="password"
-              type="password"
-              placeholder="Enter new password"
-              required
-              minLength={6}
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-            />
-          </div>
-
-          <div className="space-y-2">
-            <label
-              className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70"
-              htmlFor="confirmPassword"
-            >
-              Confirm New Password
-            </label>
-            <input
-              className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring"
-              id="confirmPassword"
-              type="password"
-              placeholder="Confirm new password"
-              required
-              minLength={6}
-              value={confirmPassword}
-              onChange={(e) => setConfirmPassword(e.target.value)}
-            />
-          </div>
-
-          <Button
-            type="submit"
-            className="w-full bg-ghana-green hover:bg-ghana-green-dark dark:bg-ghana-green-dark dark:hover:bg-ghana-green text-white"
-            variant="ghana"
-            disabled={loading || !password || !confirmPassword}
-          >
-            {loading ? (
-              <span className="flex items-center gap-2">
-                <svg
-                  className="h-4 w-4 animate-spin"
-                  xmlns="http://www.w3.org/2000/svg"
-                  fill="none"
-                  viewBox="0 0 24 24"
-                >
-                  <circle
-                    className="opacity-25"
-                    cx="12"
-                    cy="12"
-                    r="10"
-                    stroke="currentColor"
-                    strokeWidth="4"
-                  ></circle>
-                  <path
-                    className="opacity-75"
-                    fill="currentColor"
-                    d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
-                  ></path>
-                </svg>
-                Updating Password...
-              </span>
-            ) : (
-              "Update Password"
-            )}
-          </Button>
-        </form>
-
-        <div className="mt-4 text-center text-sm">
-          <a
-            href="/login"
-            className="font-medium text-ghana-green hover:text-ghana-green-dark dark:text-ghana-green dark:hover:text-ghana-green transition-colors"
-          >
-            Back to Sign In
-          </a>
-        </div>
       </div>
     </div>
   );
