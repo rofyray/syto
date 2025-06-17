@@ -12,6 +12,7 @@ import { MathematicsPage } from '@/pages/mathematics-page';
 import { ChalePage } from '@/pages/chale-page';
 import { NotFoundPage } from '@/pages/not-found-page';
 
+
 function App() {
   const { initialize, initialized } = useAuthStore();
 
@@ -30,6 +31,7 @@ function App() {
       <Route path="/english" element={<EnglishPage />} />
       <Route path="/mathematics" element={<MathematicsPage />} />
       <Route path="/chale" element={<ChalePage />} />
+
       <Route path="*" element={<NotFoundPage />} />
     </Routes>
   );

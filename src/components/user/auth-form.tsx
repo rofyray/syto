@@ -1,9 +1,10 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { supabase } from "@/lib/supabase";
 import { Button } from "@/components/ui/button";
 import { Logo } from "@/components/logo";
 import { ThemeToggle } from "@/components/theme-toggle";
+import { AlertCircle, CheckCircle } from "lucide-react";
 
 interface AuthFormProps {
   isLogin?: boolean;
@@ -12,29 +13,60 @@ interface AuthFormProps {
 export function AuthForm({ isLogin = true }: AuthFormProps) {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+  const [confirmPassword, setConfirmPassword] = useState("");
   const [name, setName] = useState("");
   const [grade, setGrade] = useState<number>(4);
   const [loading, setLoading] = useState(false);
+  useEffect(() => {
+    return () => {
+      setLoading(false);
+    };
+  }, []);
   const [error, setError] = useState<string | null>(null);
+  const [success, setSuccess] = useState<string | null>(null);
+
+  // Debug: log every render and key state
+  console.log('[AuthForm render]', {
+    isLogin,
+    loading,
+    success,
+    error
+  });
   const navigate = useNavigate();
+  
+
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true);
     setError(null);
+    setSuccess(null);
 
     try {
       if (isLogin) {
-        // Sign in
+        if (!email || !password) {
+          setError("Please enter both email and password");
+          setLoading(false);
+          return;
+        }
         const { error } = await supabase.auth.signInWithPassword({
           email,
           password,
         });
-
         if (error) throw error;
+        setSuccess("Login successful!");
         navigate("/dashboard");
       } else {
-        // Sign up
+        if (!email || !password || !confirmPassword || !name) {
+          setError("Please fill in all required fields");
+          setLoading(false);
+          return;
+        }
+        if (password !== confirmPassword) {
+          setError("Passwords do not match");
+          setLoading(false);
+          return;
+        }
         const { data, error } = await supabase.auth.signUp({
           email,
           password,
@@ -45,10 +77,8 @@ export function AuthForm({ isLogin = true }: AuthFormProps) {
             },
           },
         });
-
         if (error) throw error;
-
-        // Create profile
+        setSuccess("Signup successful! Check your email for verification.");
         if (data.user) {
           const { error: profileError } = await supabase.from("profiles").insert([
             {
@@ -58,10 +88,8 @@ export function AuthForm({ isLogin = true }: AuthFormProps) {
               created_at: new Date().toISOString(),
             },
           ]);
-
           if (profileError) throw profileError;
         }
-
         navigate("/dashboard");
       }
     } catch (error: any) {
@@ -94,8 +122,16 @@ export function AuthForm({ isLogin = true }: AuthFormProps) {
         </div>
 
         {error && (
-          <div className="rounded-md bg-error-100 p-3 text-sm text-error-600 dark:bg-error-900/30 dark:text-error-400">
-            {error}
+          <div className="rounded-md bg-error-100 p-3 text-sm text-error-600 dark:bg-error-900/30 dark:text-error-400 flex items-start gap-2">
+            <AlertCircle className="h-4 w-4 mt-0.5 flex-shrink-0" />
+            <span>{error}</span>
+          </div>
+        )}
+
+        {success && (
+          <div className="rounded-md bg-success-100 p-3 text-sm text-success-600 dark:bg-success-900/30 dark:text-success-400 flex items-start gap-2">
+            <CheckCircle className="h-4 w-4 mt-0.5 flex-shrink-0" />
+            <span>{success}</span>
           </div>
         )}
 
@@ -152,7 +188,30 @@ export function AuthForm({ isLogin = true }: AuthFormProps) {
               value={password}
               onChange={(e) => setPassword(e.target.value)}
             />
+            {isLogin && (
+              <div className="pt-1 text-right">
+              </div>
+            )}
           </div>
+
+          {!isLogin && (
+            <div className="space-y-2">
+              <label
+                className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70"
+                htmlFor="confirm-password"
+              >
+                Confirm Password
+              </label>
+              <input
+                className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-ring"
+                id="confirm-password"
+                type="password"
+                required
+                value={confirmPassword}
+                onChange={(e) => setConfirmPassword(e.target.value)}
+              />
+            </div>
+          )}
 
           {!isLogin && (
             <div className="space-y-2">
@@ -179,9 +238,10 @@ export function AuthForm({ isLogin = true }: AuthFormProps) {
             type="submit"
             className="w-full bg-ghana-green hover:bg-ghana-green-dark dark:bg-ghana-green-dark dark:hover:bg-ghana-green text-white"
             variant="ghana"
-            disabled={loading}
+            disabled={loading || !!success}
           >
-            {loading ? (
+            {/* Only show spinner if loading and no success message */}
+            {loading && !success ? (
               <span className="flex items-center gap-2">
                 <svg
                   className="h-4 w-4 animate-spin"
@@ -211,6 +271,8 @@ export function AuthForm({ isLogin = true }: AuthFormProps) {
               "Create Account"
             )}
           </Button>
+
+
         </form>
 
         <div className="mt-4 text-center text-sm">
