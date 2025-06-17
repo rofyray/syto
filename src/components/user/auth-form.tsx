@@ -24,14 +24,7 @@ export function AuthForm({ isLogin = true }: AuthFormProps) {
   }, []);
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
-
-  // Debug: log every render and key state
-  console.log('[AuthForm render]', {
-    isLogin,
-    loading,
-    success,
-    error
-  });
+  const [showForgotPassword, setShowForgotPassword] = useState(false);
   const navigate = useNavigate();
   
 
@@ -43,12 +36,26 @@ export function AuthForm({ isLogin = true }: AuthFormProps) {
     setSuccess(null);
 
     try {
-      if (isLogin) {
-        if (!email || !password) {
-          setError("Please enter both email and password");
-          setLoading(false);
-          return;
-        }
+      if (showForgotPassword) {
+        // Handle password reset with correct redirect URL
+        // Determine the correct redirect URL based on environment
+        const isProduction = window.location.hostname !== 'localhost';
+        const redirectUrl = isProduction 
+          ? 'https://syto.online/reset-password'
+          : `${window.location.origin}/reset-password`;
+        
+        console.log('Sending password reset with redirect URL:', redirectUrl);
+        
+        const { error } = await supabase.auth.resetPasswordForEmail(email, {
+          redirectTo: redirectUrl,
+        });
+
+        if (error) throw error;
+        
+        setSuccess("Password reset email sent! Please check your inbox and follow the instructions.");
+        setShowForgotPassword(false);
+      } else if (isLogin) {
+        // Sign in
         const { error } = await supabase.auth.signInWithPassword({
           email,
           password,
@@ -99,6 +106,13 @@ export function AuthForm({ isLogin = true }: AuthFormProps) {
     }
   };
 
+  const handleBackToLogin = () => {
+    setShowForgotPassword(false);
+    setError(null);
+    setSuccess(null);
+    setEmail("");
+  };
+
   return (
     <div className="flex min-h-screen flex-col items-center justify-center bg-background p-4">
       {/* Theme Toggle */}
@@ -112,31 +126,35 @@ export function AuthForm({ isLogin = true }: AuthFormProps) {
         <div className="flex flex-col items-center justify-center space-y-2 text-center">
           <Logo size="lg" />
           <h1 className="text-2xl font-bold">
-            {isLogin ? "Welcome back to Syto" : "Join Syto Learning Platform"}
+            {showForgotPassword
+              ? "Reset Your Password"
+              : isLogin
+              ? "Welcome back to Syto"
+              : "Join Syto Learning Platform"}
           </h1>
           <p className="text-sm text-muted-foreground">
-            {isLogin
+            {showForgotPassword
+              ? "Enter your email address and we'll send you a link to reset your password"
+              : isLogin
               ? "Sign in to continue your learning journey"
               : "Create an account to start learning"}
           </p>
         </div>
 
         {error && (
-          <div className="rounded-md bg-error-100 p-3 text-sm text-error-600 dark:bg-error-900/30 dark:text-error-400 flex items-start gap-2">
-            <AlertCircle className="h-4 w-4 mt-0.5 flex-shrink-0" />
-            <span>{error}</span>
+          <div className="rounded-md bg-error-100 p-3 text-sm text-error-600 dark:bg-error-900/30 dark:text-error-400">
+            {error}
           </div>
         )}
 
         {success && (
-          <div className="rounded-md bg-success-100 p-3 text-sm text-success-600 dark:bg-success-900/30 dark:text-success-400 flex items-start gap-2">
-            <CheckCircle className="h-4 w-4 mt-0.5 flex-shrink-0" />
-            <span>{success}</span>
+          <div className="rounded-md bg-success-100 p-3 text-sm text-success-600 dark:bg-success-900/30 dark:text-success-400">
+            {success}
           </div>
         )}
 
         <form onSubmit={handleSubmit} className="space-y-4">
-          {!isLogin && (
+          {!isLogin && !showForgotPassword && (
             <div className="space-y-2">
               <label
                 className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70"
@@ -173,47 +191,26 @@ export function AuthForm({ isLogin = true }: AuthFormProps) {
             />
           </div>
 
-          <div className="space-y-2">
-            <label
-              className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70"
-              htmlFor="password"
-            >
-              Password
-            </label>
-            <input
-              className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring"
-              id="password"
-              type="password"
-              required
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-            />
-            {isLogin && (
-              <div className="pt-1 text-right">
-              </div>
-            )}
-          </div>
-
-          {!isLogin && (
+          {!showForgotPassword && (
             <div className="space-y-2">
               <label
                 className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70"
-                htmlFor="confirm-password"
+                htmlFor="password"
               >
-                Confirm Password
+                Password
               </label>
               <input
-                className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-ring"
-                id="confirm-password"
+                className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring"
+                id="password"
                 type="password"
                 required
-                value={confirmPassword}
-                onChange={(e) => setConfirmPassword(e.target.value)}
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
               />
             </div>
           )}
 
-          {!isLogin && (
+          {!isLogin && !showForgotPassword && (
             <div className="space-y-2">
               <label
                 className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70"
@@ -265,6 +262,8 @@ export function AuthForm({ isLogin = true }: AuthFormProps) {
                 </svg>
                 Processing...
               </span>
+            ) : showForgotPassword ? (
+              "Send Reset Email"
             ) : isLogin ? (
               "Sign In"
             ) : (
@@ -275,23 +274,40 @@ export function AuthForm({ isLogin = true }: AuthFormProps) {
 
         </form>
 
-        <div className="mt-4 text-center text-sm">
-          {isLogin ? (
-            <p>
-              Don't have an account?{" "}
-              <a
-                href="/signup"
-                className="font-medium text-ghana-green hover:text-ghana-green-dark dark:text-ghana-green dark:hover:text-ghana-green"
+        <div className="mt-4 text-center text-sm space-y-2">
+          {showForgotPassword ? (
+            <button
+              type="button"
+              onClick={handleBackToLogin}
+              className="font-medium text-ghana-green hover:text-ghana-green-dark dark:text-ghana-green dark:hover:text-ghana-green transition-colors"
+            >
+              Back to Sign In
+            </button>
+          ) : isLogin ? (
+            <>
+              <button
+                type="button"
+                onClick={() => setShowForgotPassword(true)}
+                className="font-medium text-ghana-green hover:text-ghana-green-dark dark:text-ghana-green dark:hover:text-ghana-green transition-colors"
               >
-                Create one
-              </a>
-            </p>
+                Forgot Password?
+              </button>
+              <p className="mt-2">
+                Don't have an account?{" "}
+                <a
+                  href="/signup"
+                  className="font-medium text-ghana-green hover:text-ghana-green-dark dark:text-ghana-green dark:hover:text-ghana-green transition-colors"
+                >
+                  Create one
+                </a>
+              </p>
+            </>
           ) : (
             <p>
               Already have an account?{" "}
               <a
                 href="/login"
-                className="font-medium text-ghana-green hover:text-ghana-green-dark dark:text-ghana-green dark:hover:text-ghana-green"
+                className="font-medium text-ghana-green hover:text-ghana-green-dark dark:text-ghana-green dark:hover:text-ghana-green transition-colors"
               >
                 Sign in
               </a>

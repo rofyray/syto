@@ -16,6 +16,55 @@ interface AuthState {
   updateProfile: (data: any) => Promise<void>;
 }
 
+const createDefaultProfile = async (userId: string, userEmail: string) => {
+  const defaultProfile = {
+    id: userId,
+    username: userEmail?.split('@')[0] || 'New User',
+    grade_level: 4, // Default to grade 4
+    created_at: new Date().toISOString(),
+  };
+
+  const { data, error } = await supabase
+    .from('profiles')
+    .insert([defaultProfile])
+    .select()
+    .single();
+
+  if (error) {
+    console.error('Error creating default profile:', error);
+    return null;
+  }
+
+  return data;
+};
+
+const fetchOrCreateProfile = async (userId: string, userEmail: string) => {
+  // First try to fetch existing profile
+  const { data: profile, error } = await supabase
+    .from('profiles')
+    .select('*')
+    .eq('id', userId)
+    .single();
+
+  // If profile exists, return it
+  if (profile && !error) {
+    return profile;
+  }
+
+  // If no profile exists (PGRST116 error), create a default one
+  if (error && error.code === 'PGRST116') {
+    console.log('No profile found for user, creating default profile...');
+    return await createDefaultProfile(userId, userEmail);
+  }
+
+  // If there's a different error, log it and return null
+  if (error) {
+    console.error('Error fetching profile:', error);
+  }
+
+  return null;
+};
+
 export const useAuthStore = create<AuthState>((set, get) => ({
   user: null,
   profile: null,
@@ -33,18 +82,9 @@ export const useAuthStore = create<AuthState>((set, get) => ({
       if (session?.user) {
         set({ user: session.user });
         
-        // Fetch user profile
-        const { data: profile, error } = await supabase
-          .from('profiles')
-          .select('*')
-          .eq('id', session.user.id)
-          .single();
-        
-        if (error && error.code !== 'PGRST116') {
-          throw error;
-        }
-        
-        set({ profile: profile || null });
+        // Fetch or create user profile
+        const profile = await fetchOrCreateProfile(session.user.id, session.user.email);
+        set({ profile });
       }
     } catch (error: any) {
       console.error('Error initializing auth:', error);
@@ -59,17 +99,9 @@ export const useAuthStore = create<AuthState>((set, get) => ({
       set({ user });
       
       if (user) {
-        const { data: profile, error } = await supabase
-          .from('profiles')
-          .select('*')
-          .eq('id', user.id)
-          .single();
-        
-        if (error && error.code !== 'PGRST116') {
-          console.error('Error fetching profile:', error);
-        }
-        
-        set({ profile: profile || null });
+        // Fetch or create user profile
+        const profile = await fetchOrCreateProfile(user.id, user.email);
+        set({ profile });
       } else {
         set({ profile: null });
       }
@@ -88,18 +120,9 @@ export const useAuthStore = create<AuthState>((set, get) => ({
       if (error) throw error;
       set({ user: data.user });
       
-      // Fetch profile after login
-      const { data: profile, error: profileError } = await supabase
-        .from('profiles')
-        .select('*')
-        .eq('id', data.user.id)
-        .single();
-      
-      if (profileError && profileError.code !== 'PGRST116') {
-        throw profileError;
-      }
-      
-      set({ profile: profile || null });
+      // Fetch or create profile after login
+      const profile = await fetchOrCreateProfile(data.user.id, data.user.email);
+      set({ profile });
     } catch (error: any) {
       set({ error: error.message });
       throw error;
@@ -165,17 +188,8 @@ export const useAuthStore = create<AuthState>((set, get) => ({
     if (!user) return;
     
     try {
-      const { data, error } = await supabase
-        .from('profiles')
-        .select('*')
-        .eq('id', user.id)
-        .single();
-      
-      if (error && error.code !== 'PGRST116') {
-        throw error;
-      }
-      
-      set({ profile: data || null });
+      const profile = await fetchOrCreateProfile(user.id, user.email);
+      set({ profile });
     } catch (error: any) {
       console.error('Error fetching profile:', error);
     }

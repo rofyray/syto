@@ -6,6 +6,7 @@ import { useAuthStore } from '@/stores/auth-store';
 import { HomePage } from '@/pages/home-page';
 import { LoginPage } from '@/pages/login-page';
 import { SignupPage } from '@/pages/signup-page';
+import { ResetPasswordPage } from '@/pages/reset-password-page';
 import { DashboardPage } from '@/pages/dashboard-page';
 import { EnglishPage } from '@/pages/english-page';
 import { MathematicsPage } from '@/pages/mathematics-page';
@@ -27,6 +28,7 @@ function App() {
       <Route path="/" element={<HomePage />} />
       <Route path="/login" element={<LoginPage />} />
       <Route path="/signup" element={<SignupPage />} />
+      <Route path="/reset-password" element={<ResetPasswordPage />} />
       <Route path="/dashboard" element={<DashboardPage />} />
       <Route path="/english" element={<EnglishPage />} />
       <Route path="/mathematics" element={<MathematicsPage />} />
