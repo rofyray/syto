@@ -4,7 +4,6 @@ import { supabase } from "@/lib/supabase";
 import { Button } from "@/components/ui/button";
 import { Logo } from "@/components/logo";
 import { ThemeToggle } from "@/components/theme-toggle";
-import { AlertCircle, CheckCircle } from "lucide-react";
 
 interface AuthFormProps {
   isLogin?: boolean;
@@ -13,7 +12,7 @@ interface AuthFormProps {
 export function AuthForm({ isLogin = true }: AuthFormProps) {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
-  const [confirmPassword, setConfirmPassword] = useState("");
+  const [confirmPassword] = useState("");
   const [name, setName] = useState("");
   const [grade, setGrade] = useState<number>(4);
   const [loading, setLoading] = useState(false);
@@ -260,7 +259,7 @@ export function AuthForm({ isLogin = true }: AuthFormProps) {
                     d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
                   ></path>
                 </svg>
-                Processing...
+                Signing In...
               </span>
             ) : showForgotPassword ? (
               "Send Reset Email"
