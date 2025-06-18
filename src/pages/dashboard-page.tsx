@@ -9,11 +9,19 @@ import { getUserProgressByUserId, getModulesByGradeAndSubject } from "@/lib/supa
 import { calculateCompletion, getTimeBasedGreeting } from "@/lib/utils";
 import { useNavigate } from "react-router-dom";
 
+interface RecentModule {
+  id: string;
+  title: string;
+  subject: "english" | "mathematics";
+  progress: number;
+  lastAccessed: string;
+}
+
 export function DashboardPage() {
   const { user, profile } = useAuthStore();
   const [englishProgress, setEnglishProgress] = useState(0);
   const [mathProgress, setMathProgress] = useState(0);
-  const [recentModules, setRecentModules] = useState<any[]>([]);
+  const [recentModules, setRecentModules] = useState<RecentModule[]>([]);
   const [loading, setLoading] = useState(true);
   const navigate = useNavigate();
 
@@ -37,30 +45,33 @@ export function DashboardPage() {
         setEnglishProgress(calculateCompletion(englishCompleted, englishModules.length || 1));
         setMathProgress(calculateCompletion(mathCompleted, mathModules.length || 1));
         
-        // Get recent modules (mock data for now)
-        setRecentModules([
-          {
-            id: "eng-1",
-            title: "Reading Comprehension",
-            subject: "english",
-            progress: 75,
-            lastAccessed: new Date().toISOString(),
-          },
-          {
-            id: "math-1",
-            title: "Number Operations",
-            subject: "mathematics",
-            progress: 40,
-            lastAccessed: new Date().toISOString(),
-          },
-          {
-            id: "eng-2",
-            title: "Grammar Basics",
-            subject: "english",
-            progress: 20,
-            lastAccessed: new Date().toISOString(),
-          },
-        ]);
+        // Get recent modules with progress
+        const allModules = [...englishModules, ...mathModules];
+        const recentModulesWithProgress = allModules
+          .map(module => {
+            const moduleProgress = progress.filter(p => p.module_id === module.id);
+            const completedTopics = moduleProgress.filter(p => p.completed).length;
+            const totalTopics = moduleProgress.length || 1;
+            const progressPercentage = Math.round((completedTopics / totalTopics) * 100);
+            
+            // Get the most recent access date
+            const lastAccessed = moduleProgress.length > 0 
+              ? Math.max(...moduleProgress.map(p => new Date(p.created_at || '').getTime()))
+              : 0;
+            
+            return {
+              id: module.id,
+              title: module.title,
+              subject: module.subject,
+              progress: progressPercentage,
+              lastAccessed: new Date(lastAccessed).toISOString()
+            };
+          })
+          .filter(module => module.progress > 0) // Only show modules with some progress
+          .sort((a, b) => new Date(b.lastAccessed).getTime() - new Date(a.lastAccessed).getTime())
+          .slice(0, 3); // Get top 3 recent modules
+        
+        setRecentModules(recentModulesWithProgress);
       } catch (error) {
         console.error("Error fetching dashboard data:", error);
       } finally {
@@ -92,18 +103,11 @@ export function DashboardPage() {
         {/* Welcome Section */}
         <div className="mb-8">
           <h1 className="text-3xl font-bold mb-2">
-            {getTimeBasedGreeting()}, {profile?.username || "Student"}!
+            {getTimeBasedGreeting()}, {profile?.first_name || "Student"}!
           </h1>
           <p className="text-muted-foreground">
             Welcome to your learning dashboard. Here's your current progress.
           </p>
-          
-          {/* User ID for identification */}
-          <div className="mt-4 p-3 bg-muted rounded-md inline-block">
-            <p className="text-xs text-muted-foreground">
-              <span className="font-semibold">User ID:</span> {user?.id}
-            </p>
-          </div>
         </div>
 
         {/* Overall Progress */}
@@ -124,7 +128,7 @@ export function DashboardPage() {
                 <Progress value={englishProgress} variant="ghana" />
                 <Button 
                   variant="outline" 
-                  className="w-full mt-4"
+                  className="w-full mt-4 bg-ghana-gold hover:bg-ghana-gold-dark text-white"
                   onClick={() => navigate("/english")}
                 >
                   Continue Learning
@@ -149,7 +153,7 @@ export function DashboardPage() {
                 <Progress value={mathProgress} variant="ghana" />
                 <Button 
                   variant="outline" 
-                  className="w-full mt-4"
+                  className="w-full mt-4 bg-ghana-gold hover:bg-ghana-gold-dark text-white"
                   onClick={() => navigate("/mathematics")}
                 >
                   Continue Learning
@@ -161,43 +165,51 @@ export function DashboardPage() {
 
         {/* Recent Modules */}
         <h2 className="text-2xl font-bold mb-4">Recent Modules</h2>
-        <div className="grid gap-6 md:grid-cols-3 mb-8">
-          {recentModules.map((module) => (
-            <Card key={module.id} className="hover:shadow-md transition-all">
-              <CardHeader className="pb-2">
-                <CardTitle className="flex items-center text-lg">
-                  {module.subject === "english" ? (
-                    <BookOpen className="mr-2 h-4 w-4 text-ghana-green dark:text-ghana-green" />
-                  ) : (
-                    <BookText className="mr-2 h-4 w-4 text-ghana-gold dark:text-ghana-gold-dark" />
-                  )}
-                  {module.title}
-                </CardTitle>
-                <CardDescription>
-                  {module.subject === "english" ? "English" : "Mathematics"}
-                </CardDescription>
-              </CardHeader>
-              <CardContent>
-                <div className="space-y-2">
-                  <div className="flex items-center justify-between">
-                    <span className="text-sm font-medium">{module.progress}% Complete</span>
+        {recentModules.length > 0 ? (
+          <div className="grid gap-6 md:grid-cols-3 mb-8">
+            {recentModules.map((module) => (
+              <Card key={module.id} className="hover:shadow-md transition-all">
+                <CardHeader className="pb-2">
+                  <CardTitle className="flex items-center text-lg">
+                    {module.subject === "english" ? (
+                      <BookOpen className="mr-2 h-4 w-4 text-ghana-green dark:text-ghana-green" />
+                    ) : (
+                      <BookText className="mr-2 h-4 w-4 text-ghana-gold dark:text-ghana-gold-dark" />
+                    )}
+                    {module.title}
+                  </CardTitle>
+                  <CardDescription>
+                    {module.subject === "english" ? "English" : "Mathematics"}
+                  </CardDescription>
+                </CardHeader>
+                <CardContent>
+                  <div className="space-y-2">
+                    <div className="flex items-center justify-between">
+                      <span className="text-sm font-medium">{module.progress}% Complete</span>
+                    </div>
+                    <Progress 
+                      value={module.progress} 
+                      variant={module.subject === "english" ? "success" : "ghana"} 
+                    />
+                    <Button 
+                      variant="ghost" 
+                      className="w-full mt-4 bg-ghana-gold hover:bg-ghana-gold-dark text-white"
+                      onClick={() => navigate(`/${module.subject}/${module.id}`)}
+                    >
+                      Continue
+                    </Button>
                   </div>
-                  <Progress 
-                    value={module.progress} 
-                    variant={module.subject === "english" ? "success" : "warning"} 
-                  />
-                  <Button 
-                    variant="ghost" 
-                    className="w-full mt-4"
-                    onClick={() => navigate(`/${module.subject}/${module.id}`)}
-                  >
-                    Continue
-                  </Button>
-                </div>
-              </CardContent>
-            </Card>
-          ))}
-        </div>
+                </CardContent>
+              </Card>
+            ))}
+          </div>
+        ) : (
+          <div className="flex items-center justify-center h-64">
+            <div className="flex flex-col items-center">
+              <p className="text-muted-foreground">No recent modules available.</p>
+            </div>
+          </div>
+        )}
 
         {/* AI Assistant */}
         <Card className="mb-8 bg-gradient-to-r from-ghana-green/10 to-ghana-gold/10 dark:from-ghana-green-dark/20 dark:to-ghana-gold-dark/20">

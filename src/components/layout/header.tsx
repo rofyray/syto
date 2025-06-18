@@ -1,7 +1,7 @@
 import { useState, useEffect } from "react";
 import { Link, useLocation, useNavigate } from "react-router-dom";
 import { Menu, X, LogOut, User } from "lucide-react";
-import { supabase } from "@/lib/supabase";
+import { useAuthStore } from "@/stores/auth-store";
 import { Logo } from "@/components/logo";
 import { Button } from "@/components/ui/button";
 import { ThemeToggle } from "@/components/theme-toggle";
@@ -10,22 +10,11 @@ import { cn } from "@/lib/utils";
 export function Header() {
   const [isOpen, setIsOpen] = useState(false);
   const [isScrolled, setIsScrolled] = useState(false);
-  const [user, setUser] = useState<any>(null);
+  const { user, logout } = useAuthStore();
   const location = useLocation();
   const navigate = useNavigate();
 
   useEffect(() => {
-    const { data: authListener } = supabase.auth.onAuthStateChange(
-      (event, session) => {
-        setUser(session?.user || null);
-      }
-    );
-
-    // Check current user
-    supabase.auth.getSession().then(({ data: { session } }) => {
-      setUser(session?.user || null);
-    });
-
     // Handle scrolling for header transparency
     const handleScroll = () => {
       setIsScrolled(window.scrollY > 10);
@@ -34,14 +23,17 @@ export function Header() {
     window.addEventListener("scroll", handleScroll);
 
     return () => {
-      authListener?.subscription.unsubscribe();
       window.removeEventListener("scroll", handleScroll);
     };
   }, []);
 
   const handleSignOut = async () => {
-    await supabase.auth.signOut();
-    navigate("/login");
+    try {
+      await logout();
+      navigate("/login");
+    } catch (error) {
+      console.error('Error signing out:', error);
+    }
   };
 
   const toggleMenu = () => {
@@ -127,9 +119,8 @@ export function Header() {
                 onClick={() => navigate("/profile")}
               >
                 <User size={16} />
-                <span>Profile</span>
+                Profile
               </Button>
-              
               <Button
                 variant="outline"
                 size="sm"
@@ -137,13 +128,13 @@ export function Header() {
                 onClick={handleSignOut}
               >
                 <LogOut size={16} />
-                <span>Sign Out</span>
+                Sign Out
               </Button>
             </div>
           ) : (
             <div className="hidden md:flex items-center space-x-2">
               <Button
-                variant="ghost"
+                variant="outline"
                 size="sm"
                 onClick={() => navigate("/login")}
               >

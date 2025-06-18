@@ -6,55 +6,65 @@ import { Progress } from "@/components/ui/progress";
 import { Button } from "@/components/ui/button";
 import { useNavigate } from "react-router-dom";
 import { useAuthStore } from "@/stores/auth-store";
+import { getModulesByGradeAndSubject, getTopicsByModuleId, getUserProgressByUserId, type Module } from "@/lib/supabase";
 
-// Mock module data (in production, this would come from Supabase)
-const mockModules = [
-  {
-    id: "eng-1",
-    title: "Reading Comprehension",
-    description: "Learn to understand and analyze texts with Ghanaian stories and passages.",
-    topics: ["Understanding Main Ideas", "Making Inferences", "Vocabulary in Context"],
-    progress: 75,
-    image: "https://images.pexels.com/photos/256546/pexels-photo-256546.jpeg?auto=compress&cs=tinysrgb&w=600",
-  },
-  {
-    id: "eng-2",
-    title: "Grammar Basics",
-    description: "Master the fundamentals of English grammar with interactive exercises.",
-    topics: ["Nouns and Pronouns", "Verbs and Tenses", "Adjectives and Adverbs"],
-    progress: 40,
-    image: "https://images.pexels.com/photos/4439901/pexels-photo-4439901.jpeg?auto=compress&cs=tinysrgb&w=600",
-  },
-  {
-    id: "eng-3",
-    title: "Writing Skills",
-    description: "Develop your writing abilities through creative and structured exercises.",
-    topics: ["Sentence Structure", "Paragraph Writing", "Creative Stories"],
-    progress: 10,
-    image: "https://images.pexels.com/photos/3059747/pexels-photo-3059747.jpeg?auto=compress&cs=tinysrgb&w=600",
-  },
-  {
-    id: "eng-4",
-    title: "Vocabulary Building",
-    description: "Expand your word knowledge with contextually relevant vocabulary.",
-    topics: ["Word Meanings", "Synonyms and Antonyms", "Using New Words"],
-    progress: 0,
-    image: "https://images.pexels.com/photos/6384/woman-hand-desk-office.jpg?auto=compress&cs=tinysrgb&w=600",
-  },
-];
+interface ModuleWithProgress extends Module {
+  progress: number;
+  image?: string;
+}
 
 export function EnglishPage() {
-  const { profile } = useAuthStore();
-  const [modules, setModules] = useState(mockModules);
+  const { user, profile } = useAuthStore();
+  const [modules, setModules] = useState<ModuleWithProgress[]>([]);
   const [overallProgress, setOverallProgress] = useState(0);
   const navigate = useNavigate();
 
   useEffect(() => {
-    // Calculate overall progress
-    const completed = modules.reduce((sum, module) => sum + module.progress, 0);
-    const total = modules.length * 100;
-    setOverallProgress(Math.round((completed / total) * 100));
-  }, [modules]);
+    const fetchEnglishData = async () => {
+      if (!user || !profile) return;
+      
+      try {
+        // Fetch English modules for the user's grade level
+        const englishModules = await getModulesByGradeAndSubject(profile.grade_level, "english");
+        
+        // Fetch user progress
+        const userProgress = await getUserProgressByUserId(user.id);
+        
+        // Calculate progress for each module
+        const modulesWithProgress = await Promise.all(
+          englishModules.map(async (module) => {
+            // Get topics for this module to calculate progress
+            const topics = await getTopicsByModuleId(module.id);
+            const moduleProgress = userProgress.filter(p => p.module_id === module.id);
+            const completedTopics = moduleProgress.filter(p => p.completed).length;
+            const totalTopics = topics.length || 1;
+            const progressPercentage = Math.round((completedTopics / totalTopics) * 100);
+            
+            return {
+              ...module,
+              progress: progressPercentage,
+              image: `https://images.pexels.com/photos/256546/pexels-photo-256546.jpeg?auto=compress&cs=tinysrgb&w=600` // Default image for now
+            };
+          })
+        );
+        
+        setModules(modulesWithProgress);
+        
+        // Calculate overall progress
+        if (modulesWithProgress.length > 0) {
+          const completed = modulesWithProgress.reduce((sum, module) => sum + module.progress, 0);
+          const total = modulesWithProgress.length * 100;
+          setOverallProgress(Math.round((completed / total) * 100));
+        } else {
+          setOverallProgress(0);
+        }
+      } catch (error) {
+        console.error("Error fetching English data:", error);
+      }
+    };
+
+    fetchEnglishData();
+  }, [user, profile]);
 
   return (
     <AppLayout>
@@ -102,54 +112,61 @@ export function EnglishPage() {
 
         {/* Modules Grid */}
         <div className="grid gap-6 md:grid-cols-2">
-          {modules.map((module) => (
-            <Card 
-              key={module.id}
-              className="overflow-hidden hover:shadow-md transition-all"
-            >
-              <div className="aspect-video relative overflow-hidden">
-                <img
-                  src={module.image}
-                  alt={module.title}
-                  className="w-full h-full object-cover transition-transform hover:scale-105"
-                />
-                <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/70 to-transparent p-4">
-                  <h2 className="text-white text-xl font-bold">{module.title}</h2>
-                </div>
-              </div>
-              
-              <CardContent className="p-6">
-                <p className="mb-4">{module.description}</p>
-                
-                <div className="mb-4">
-                  <h4 className="text-sm font-semibold mb-2">Topics:</h4>
-                  <ul className="space-y-1">
-                    {module.topics.map((topic, index) => (
-                      <li key={index} className="text-sm flex items-center">
-                        <BookText className="mr-2 h-4 w-4 text-ghana-green dark:text-ghana-green" />
-                        {topic}
-                      </li>
-                    ))}
-                  </ul>
-                </div>
-                
-                <div className="space-y-2 mb-4">
-                  <div className="flex items-center justify-between">
-                    <span className="text-sm font-medium">{module.progress}% Complete</span>
+          {modules.length > 0 ? (
+            modules.map((module) => (
+              <Card 
+                key={module.id}
+                className="overflow-hidden hover:shadow-md transition-all"
+              >
+                <div className="aspect-video relative overflow-hidden">
+                  <img
+                    src={module.image}
+                    alt={module.title}
+                    className="w-full h-full object-cover transition-transform hover:scale-105"
+                  />
+                  <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/70 to-transparent p-4">
+                    <h2 className="text-white text-xl font-bold">{module.title}</h2>
                   </div>
-                  <Progress value={module.progress} variant="success" />
                 </div>
                 
-                <Button
-                  variant="ghana"
-                  className="w-full"
-                  onClick={() => navigate(`/english/${module.id}`)}
-                >
-                  {module.progress > 0 ? "Continue Learning" : "Start Learning"}
-                </Button>
-              </CardContent>
-            </Card>
-          ))}
+                <CardContent className="p-6">
+                  <p className="mb-4">{module.description}</p>
+                  
+                  <div className="mb-4">
+                    <h4 className="text-sm font-semibold mb-2">Topics:</h4>
+                    <ul className="space-y-1">
+                      {module.topics.map((topic, index) => (
+                        <li key={index} className="text-sm flex items-center">
+                          <BookText className="mr-2 h-4 w-4 text-ghana-green dark:text-ghana-green" />
+                          {topic.title}
+                        </li>
+                      ))}
+                    </ul>
+                  </div>
+                  
+                  <div className="space-y-2 mb-4">
+                    <div className="flex items-center justify-between">
+                      <span className="text-sm font-medium">{module.progress}% Complete</span>
+                    </div>
+                    <Progress value={module.progress} variant="success" />
+                  </div>
+                  
+                  <Button
+                    variant="ghana"
+                    className="w-full"
+                    onClick={() => navigate(`/english/${module.id}`)}
+                  >
+                    {module.progress > 0 ? "Continue Learning" : "Start Learning"}
+                  </Button>
+                </CardContent>
+              </Card>
+            ))
+          ) : (
+            <div className="text-center py-12">
+              <h2 className="text-2xl font-bold mb-4">No Data Available</h2>
+              <p className="text-muted-foreground">Please check back later for available modules.</p>
+            </div>
+          )}
         </div>
       </div>
     </AppLayout>

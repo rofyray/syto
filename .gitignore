@@ -39,3 +39,6 @@ coverage
 *.pem
 .DS_Store
 Thumbs.db
+.bolt
+.windsurf
+.gitignore

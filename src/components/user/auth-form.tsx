@@ -13,7 +13,8 @@ export function AuthForm({ isLogin = true }: AuthFormProps) {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [confirmPassword] = useState("");
-  const [name, setName] = useState("");
+  const [firstName, setFirstName] = useState("");
+  const [lastName, setLastName] = useState("");
   const [grade, setGrade] = useState<number>(4);
   const [loading, setLoading] = useState(false);
   useEffect(() => {
@@ -25,8 +26,6 @@ export function AuthForm({ isLogin = true }: AuthFormProps) {
   const [success, setSuccess] = useState<string | null>(null);
   const [showForgotPassword, setShowForgotPassword] = useState(false);
   const navigate = useNavigate();
-  
-
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -63,7 +62,7 @@ export function AuthForm({ isLogin = true }: AuthFormProps) {
         setSuccess("Login successful!");
         navigate("/dashboard");
       } else {
-        if (!email || !password || !confirmPassword || !name) {
+        if (!email || !password || !confirmPassword || !firstName || !lastName) {
           setError("Please fill in all required fields");
           setLoading(false);
           return;
@@ -78,7 +77,8 @@ export function AuthForm({ isLogin = true }: AuthFormProps) {
           password,
           options: {
             data: {
-              username: name,
+              first_name: firstName,
+              last_name: lastName,
               grade_level: grade,
             },
           },
@@ -89,7 +89,9 @@ export function AuthForm({ isLogin = true }: AuthFormProps) {
           const { error: profileError } = await supabase.from("profiles").insert([
             {
               id: data.user.id,
-              username: name,
+              first_name: firstName,
+              last_name: lastName,
+              username: `${firstName} ${lastName}`.trim(), // Keep username for backward compatibility
               grade_level: grade,
               created_at: new Date().toISOString(),
             },
@@ -157,17 +159,38 @@ export function AuthForm({ isLogin = true }: AuthFormProps) {
             <div className="space-y-2">
               <label
                 className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70"
-                htmlFor="name"
+                htmlFor="firstName"
               >
-                Full Name
+                First Name
               </label>
               <input
                 className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring"
-                id="name"
-                placeholder="John Doe"
+                id="firstName"
+                type="text"
+                placeholder="Enter your first name"
                 required
-                value={name}
-                onChange={(e) => setName(e.target.value)}
+                value={firstName}
+                onChange={(e) => setFirstName(e.target.value)}
+              />
+            </div>
+          )}
+
+          {!isLogin && !showForgotPassword && (
+            <div className="space-y-2">
+              <label
+                className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70"
+                htmlFor="lastName"
+              >
+                Last Name
+              </label>
+              <input
+                className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-ring"
+                id="lastName"
+                type="text"
+                placeholder="Enter your last name"
+                required
+                value={lastName}
+                onChange={(e) => setLastName(e.target.value)}
               />
             </div>
           )}
@@ -269,8 +292,6 @@ export function AuthForm({ isLogin = true }: AuthFormProps) {
               "Create Account"
             )}
           </Button>
-
-
         </form>
 
         <div className="mt-4 text-center text-sm space-y-2">

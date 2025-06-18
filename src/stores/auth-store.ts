@@ -19,6 +19,8 @@ interface AuthState {
 const createDefaultProfile = async (userId: string, userEmail: string) => {
   const defaultProfile = {
     id: userId,
+    first_name: userEmail?.split('@')[0] || 'New',
+    last_name: 'User',
     username: userEmail?.split('@')[0] || 'New User',
     grade_level: 4, // Default to grade 4
     created_at: new Date().toISOString(),
@@ -74,38 +76,64 @@ export const useAuthStore = create<AuthState>((set, get) => ({
   
   initialize: async () => {
     try {
-      set({ loading: true });
+      set({ loading: true, error: null });
       
-      // Get current session
-      const { data: { session } } = await supabase.auth.getSession();
+      // Get current session first
+      const { data: { session }, error: sessionError } = await supabase.auth.getSession();
+      
+      if (sessionError) {
+        console.error('Error getting session:', sessionError);
+        set({ error: sessionError.message, loading: false, initialized: true });
+        return;
+      }
       
       if (session?.user) {
+        console.log('Found existing session for user:', session.user.email);
         set({ user: session.user });
         
         // Fetch or create user profile
-        const profile = await fetchOrCreateProfile(session.user.id, session.user.email);
+        const profile = await fetchOrCreateProfile(session.user.id, session.user.email || '');
         set({ profile });
+      } else {
+        console.log('No existing session found');
+        set({ user: null, profile: null });
       }
+      
+      set({ loading: false, initialized: true });
     } catch (error: any) {
       console.error('Error initializing auth:', error);
-      set({ error: error.message });
-    } finally {
-      set({ loading: false, initialized: true });
+      set({ error: error.message, loading: false, initialized: true });
     }
     
-    // Set up auth state change listener
-    supabase.auth.onAuthStateChange(async (event, session) => {
+    // Set up auth state change listener AFTER initial session check
+    const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, session) => {
+      console.log('Auth state changed:', event, session?.user?.email || 'no user');
+      
       const user = session?.user || null;
-      set({ user });
+      
+      // Only set loading to true if we're transitioning between auth states
+      if (event === 'SIGNED_IN' || event === 'SIGNED_OUT') {
+        set({ user, loading: true });
+      } else {
+        set({ user });
+      }
       
       if (user) {
         // Fetch or create user profile
-        const profile = await fetchOrCreateProfile(user.id, user.email);
-        set({ profile });
+        try {
+          const profile = await fetchOrCreateProfile(user.id, user.email || '');
+          set({ profile, loading: false });
+        } catch (error) {
+          console.error('Error fetching profile after auth change:', error);
+          set({ profile: null, loading: false });
+        }
       } else {
-        set({ profile: null });
+        set({ profile: null, loading: false });
       }
     });
+    
+    // Store subscription for cleanup if needed
+    (window as any).__authSubscription = subscription;
   },
   
   login: async (email, password) => {
@@ -118,12 +146,15 @@ export const useAuthStore = create<AuthState>((set, get) => ({
       });
       
       if (error) throw error;
+      
+      console.log('Login successful for:', email);
       set({ user: data.user });
       
       // Fetch or create profile after login
-      const profile = await fetchOrCreateProfile(data.user.id, data.user.email);
+      const profile = await fetchOrCreateProfile(data.user.id, data.user.email || '');
       set({ profile });
     } catch (error: any) {
+      console.error('Login error:', error);
       set({ error: error.message });
       throw error;
     } finally {
@@ -145,6 +176,8 @@ export const useAuthStore = create<AuthState>((set, get) => ({
       
       if (error) throw error;
       
+      console.log('Signup successful for:', email);
+      
       // Create profile
       if (data.user) {
         const { error: profileError } = await supabase
@@ -152,7 +185,9 @@ export const useAuthStore = create<AuthState>((set, get) => ({
           .insert([
             {
               id: data.user.id,
-              username: userData.username,
+              first_name: userData.first_name,
+              last_name: userData.last_name,
+              username: userData.username || `${userData.first_name} ${userData.last_name}`.trim(),
               grade_level: userData.grade_level,
               created_at: new Date().toISOString(),
             },
@@ -164,6 +199,7 @@ export const useAuthStore = create<AuthState>((set, get) => ({
         await get().fetchProfile();
       }
     } catch (error: any) {
+      console.error('Signup error:', error);
       set({ error: error.message });
       throw error;
     } finally {
@@ -174,9 +210,11 @@ export const useAuthStore = create<AuthState>((set, get) => ({
   logout: async () => {
     try {
       set({ loading: true, error: null });
+      console.log('Logging out user');
       await supabase.auth.signOut();
       set({ user: null, profile: null });
     } catch (error: any) {
+      console.error('Logout error:', error);
       set({ error: error.message });
     } finally {
       set({ loading: false });
@@ -188,7 +226,7 @@ export const useAuthStore = create<AuthState>((set, get) => ({
     if (!user) return;
     
     try {
-      const profile = await fetchOrCreateProfile(user.id, user.email);
+      const profile = await fetchOrCreateProfile(user.id, user.email || '');
       set({ profile });
     } catch (error: any) {
       console.error('Error fetching profile:', error);
@@ -211,6 +249,7 @@ export const useAuthStore = create<AuthState>((set, get) => ({
       
       await get().fetchProfile();
     } catch (error: any) {
+      console.error('Update profile error:', error);
       set({ error: error.message });
       throw error;
     } finally {

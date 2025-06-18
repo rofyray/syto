@@ -58,11 +58,11 @@ export function Footer() {
             <h4 className="text-sm font-semibold">Contact</h4>
             <ul className="space-y-2 text-sm">
               <li className="text-muted-foreground">
-                Email: support@syto.edu.gh
+                Email: info@syto.online
               </li>
-              <li className="text-muted-foreground">Phone: +233 20 000 0000</li>
+              <li className="text-muted-foreground">Phone: +233 54 819 8980</li>
               <li className="text-muted-foreground">
-                Address: Accra, Ghana
+                Address: Ashaiman, Ghana
               </li>
             </ul>
           </div>
