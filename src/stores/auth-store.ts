@@ -76,32 +76,38 @@ export const useAuthStore = create<AuthState>((set, get) => ({
   
   initialize: async () => {
     try {
+      console.log('AUTH STORE: Beginning initialization');
       set({ loading: true, error: null });
       
       // Get current session first
+      console.log('AUTH STORE: Fetching session');
       const { data: { session }, error: sessionError } = await supabase.auth.getSession();
       
       if (sessionError) {
-        console.error('Error getting session:', sessionError);
+        console.error('AUTH STORE: Error getting session:', sessionError);
         set({ error: sessionError.message, loading: false, initialized: true });
         return;
       }
       
       if (session?.user) {
-        console.log('Found existing session for user:', session.user.email);
+        console.log('AUTH STORE: Found existing session for user:', session.user.email);
         set({ user: session.user });
         
         // Fetch or create user profile
+        console.log('AUTH STORE: Fetching or creating profile');
         const profile = await fetchOrCreateProfile(session.user.id, session.user.email || '');
+        console.log('AUTH STORE: Profile data:', profile);
         set({ profile });
       } else {
-        console.log('No existing session found');
+        console.log('AUTH STORE: No existing session found, proceeding as guest');
         set({ user: null, profile: null });
       }
       
+      console.log('AUTH STORE: Setting initialized=true and loading=false');
       set({ loading: false, initialized: true });
     } catch (error: any) {
-      console.error('Error initializing auth:', error);
+      console.error('AUTH STORE: Error initializing auth:', error);
+      // Force initialization to complete even on error
       set({ error: error.message, loading: false, initialized: true });
     }
     

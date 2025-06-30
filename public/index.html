@@ -1,0 +1,112 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Static Test Page</title>
+  <style>
+    body {
+      font-family: system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      margin: 0;
+      padding: 40px;
+      line-height: 1.5;
+      color: #333;
+      background-color: #f9f9f9;
+    }
+    .container {
+      max-width: 800px;
+      margin: 0 auto;
+      background-color: white;
+      padding: 30px;
+      border-radius: 8px;
+      box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+    }
+    h1 {
+      color: #e63946;
+      margin-top: 0;
+    }
+    pre {
+      background-color: #f0f0f0;
+      padding: 12px;
+      border-radius: 4px;
+      overflow: auto;
+    }
+    .section {
+      margin-bottom: 30px;
+      padding-bottom: 20px;
+      border-bottom: 1px solid #eee;
+    }
+    .btn {
+      display: inline-block;
+      padding: 8px 16px;
+      background: #1976d2;
+      color: white;
+      text-decoration: none;
+      border-radius: 4px;
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <h1>⚠️ Static HTML Override Test</h1>
+    
+    <div class="section">
+      <h2>Static Content Test</h2>
+      <p><strong>If you can see this page</strong>, your browser is successfully loading static HTML content from the server. This confirms your browser and server connection are working correctly.</p>
+    </div>
+
+    <div class="section">
+      <h2>Browser Information</h2>
+      <pre id="browser-info">Loading...</pre>
+    </div>
+
+    <div class="section">
+      <h2>Testing Links</h2>
+      <p><a href="/debug.html" class="btn">Static Debug Page</a></p>
+    </div>
+
+    <div class="section">
+      <h2>Next Steps</h2>
+      <p>Since you're seeing this page but not the React app, the issue is likely with:</p>
+      <ol>
+        <li>JavaScript errors preventing React from initializing</li>
+        <li>CSS that makes the React app invisible (opacity, display, etc.)</li>
+        <li>React mounting point (#root) missing or being overwritten</li>
+      </ol>
+    </div>
+
+    <div id="api-status" class="section">
+      <h2>API Connection</h2>
+      <p>Checking API connection...</p>
+    </div>
+  </div>
+
+  <script>
+    // Display browser information
+    document.getElementById('browser-info').textContent = JSON.stringify({
+      userAgent: navigator.userAgent,
+      language: navigator.language,
+      cookieEnabled: navigator.cookieEnabled,
+      windowDimensions: `${window.innerWidth}x${window.innerHeight}`,
+      location: window.location.href
+    }, null, 2);
+
+    // Check API connection
+    fetch('http://localhost:3001/health')
+      .then(response => response.json())
+      .then(data => {
+        document.getElementById('api-status').innerHTML = `
+          <h2>API Connection</h2>
+          <p style="color: green;">✅ API server is connected and working!</p>
+          <pre>${JSON.stringify(data, null, 2)}</pre>
+        `;
+      })
+      .catch(err => {
+        document.getElementById('api-status').innerHTML = `
+          <h2>API Connection</h2>
+          <p style="color: red;">❌ Could not connect to API server: ${err.message}</p>
+        `;
+      });
+  </script>
+</body>
+</html>

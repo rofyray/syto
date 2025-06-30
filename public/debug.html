@@ -1,0 +1,96 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Debug Test Page</title>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      padding: 2rem;
+      background: white;
+      color: black;
+    }
+    .test-container {
+      background-color: #f0f0f0;
+      border: 1px solid #ccc;
+      padding: 2rem;
+      max-width: 800px;
+      margin: 0 auto;
+      border-radius: 8px;
+    }
+    .error {
+      color: red;
+      font-weight: bold;
+    }
+    .success {
+      color: green;
+      font-weight: bold;
+    }
+  </style>
+</head>
+<body>
+  <div class="test-container">
+    <h1>Standalone Debug Page</h1>
+    <p>If you can see this page, your browser is rendering HTML correctly.</p>
+    
+    <h2>Browser Information:</h2>
+    <pre id="browser-info">Loading...</pre>
+    
+    <h2>JavaScript Test:</h2>
+    <div id="js-test" class="error">JavaScript is not working!</div>
+    
+    <h2>React App Links:</h2>
+    <ul>
+      <li><a href="/">Main App (no parameters)</a></li>
+      <li><a href="/?debug=true">Debug Mode (?debug=true)</a></li>
+    </ul>
+    
+    <div id="ping-results">
+      <h2>API Server Connection Check:</h2>
+      <p id="api-status">Checking connection to API server...</p>
+    </div>
+    
+    <h2>Recent Changes That May Be Causing Issues:</h2>
+    <ul>
+      <li>Toast notification system integration</li>
+      <li>Module selection component implementation</li>
+      <li>Chale AI API integration</li>
+      <li>Auth store initialization flow</li>
+      <li>Tabs component changes</li>
+    </ul>
+  </div>
+
+  <script>
+    // Test that JavaScript is working
+    document.getElementById('js-test').innerHTML = '<span class="success">JavaScript is working correctly!</span>';
+    
+    // Display browser info
+    const browserInfo = {
+      userAgent: navigator.userAgent,
+      language: navigator.language,
+      cookieEnabled: navigator.cookieEnabled,
+      platform: navigator.platform,
+      vendor: navigator.vendor,
+      windowDimensions: `${window.innerWidth}x${window.innerHeight}`
+    };
+    
+    document.getElementById('browser-info').textContent = JSON.stringify(browserInfo, null, 2);
+    
+    // Check API server connection
+    fetch('http://localhost:3001/health')
+      .then(response => {
+        if (!response.ok) throw new Error(`Status: ${response.status}`);
+        return response.json();
+      })
+      .then(data => {
+        document.getElementById('api-status').innerHTML = 
+          `<span class="success">API server is running! Response: ${JSON.stringify(data)}</span>`;
+      })
+      .catch(error => {
+        document.getElementById('api-status').innerHTML = 
+          `<span class="error">Failed to connect to API server: ${error}</span>`;
+      });
+  </script>
+</body>
+</html>

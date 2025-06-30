@@ -191,7 +191,7 @@ export function HomePage() {
       </section>
 
       {/* CTA Section */}
-      <section className="py-16 bg-ghana-green dark:bg-ghana-green-dark">
+      <section className="py-16 bg-ghana-green/90 dark:bg-ghana-green-dark/80 theme-transition">
         <div className="container mx-auto px-4 text-center">
           <h2 className="mb-6 text-3xl font-bold tracking-tight text-white md:text-4xl">
             Start Your Learning Journey Today

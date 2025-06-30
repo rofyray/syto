@@ -131,7 +131,7 @@ export function DashboardPage() {
                   className="w-full mt-4 bg-ghana-gold hover:bg-ghana-gold-dark text-white"
                   onClick={() => navigate("/english")}
                 >
-                  Continue Learning
+                  {englishProgress === 0 ? "Start Learning" : "Continue Learning"}
                 </Button>
               </div>
             </CardContent>
@@ -156,7 +156,7 @@ export function DashboardPage() {
                   className="w-full mt-4 bg-ghana-gold hover:bg-ghana-gold-dark text-white"
                   onClick={() => navigate("/mathematics")}
                 >
-                  Continue Learning
+                  {mathProgress === 0 ? "Start Learning" : "Continue Learning"}
                 </Button>
               </div>
             </CardContent>

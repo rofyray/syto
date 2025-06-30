@@ -1,0 +1,18 @@
+# Netlify configuration for Syto app
+
+[build]
+  command = "npm run build:all"
+  publish = "dist"
+  functions = "dist-api/functions"
+
+# Redirect API requests to Netlify Functions
+[[redirects]]
+  from = "/api/*"
+  to = "/.netlify/functions/api/:splat"
+  status = 200
+
+# SPA fallback
+[[redirects]]
+  from = "/*"
+  to = "/index.html"
+  status = 200

@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { BookOpen, BookText, Star } from "lucide-react";
+import { BookOpen, BookText, Star, X } from "lucide-react";
 import { AppLayout } from "@/components/layout/app-layout";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Progress } from "@/components/ui/progress";
@@ -7,6 +7,7 @@ import { Button } from "@/components/ui/button";
 import { useNavigate } from "react-router-dom";
 import { useAuthStore } from "@/stores/auth-store";
 import { getModulesByGradeAndSubject, getTopicsByModuleId, getUserProgressByUserId, type Module } from "@/lib/supabase";
+import { ModuleSelectionWizard } from "@/components/modules/module-selection-wizard";
 
 interface ModuleWithProgress extends Module {
   progress: number;
@@ -17,6 +18,7 @@ export function EnglishPage() {
   const { user, profile } = useAuthStore();
   const [modules, setModules] = useState<ModuleWithProgress[]>([]);
   const [overallProgress, setOverallProgress] = useState(0);
+  const [isSelectionModalOpen, setIsSelectionModalOpen] = useState(false);
   const navigate = useNavigate();
 
   useEffect(() => {
@@ -43,6 +45,7 @@ export function EnglishPage() {
             return {
               ...module,
               progress: progressPercentage,
+              topics: topics,
               image: `https://images.pexels.com/photos/256546/pexels-photo-256546.jpeg?auto=compress&cs=tinysrgb&w=600` // Default image for now
             };
           })
@@ -80,7 +83,7 @@ export function EnglishPage() {
             </p>
           </div>
           
-          <div className="mt-4 md:mt-0">
+          <div className="mt-4 md:mt-0 flex items-center space-x-2">
             <Button
               variant="outline"
               onClick={() => navigate("/chale")}
@@ -88,6 +91,14 @@ export function EnglishPage() {
             >
               <Star className="mr-2 h-4 w-4 text-ghana-gold" />
               Ask Chale for Help
+            </Button>
+            <Button
+              variant="outline"
+              size="sm"
+              className="border-2 border-ghana-green text-ghana-green hover:bg-ghana-green hover:text-white transition-colors"
+              onClick={() => setIsSelectionModalOpen(true)}
+            >
+              + Start a New Module
             </Button>
           </div>
         </div>
@@ -112,63 +123,83 @@ export function EnglishPage() {
 
         {/* Modules Grid */}
         <div className="grid gap-6 md:grid-cols-2">
-          {modules.length > 0 ? (
-            modules.map((module) => (
-              <Card 
-                key={module.id}
-                className="overflow-hidden hover:shadow-md transition-all"
-              >
-                <div className="aspect-video relative overflow-hidden">
-                  <img
-                    src={module.image}
-                    alt={module.title}
-                    className="w-full h-full object-cover transition-transform hover:scale-105"
-                  />
-                  <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/70 to-transparent p-4">
-                    <h2 className="text-white text-xl font-bold">{module.title}</h2>
-                  </div>
-                </div>
-                
-                <CardContent className="p-6">
-                  <p className="mb-4">{module.description}</p>
-                  
-                  <div className="mb-4">
-                    <h4 className="text-sm font-semibold mb-2">Topics:</h4>
-                    <ul className="space-y-1">
-                      {module.topics.map((topic, index) => (
-                        <li key={index} className="text-sm flex items-center">
-                          <BookText className="mr-2 h-4 w-4 text-ghana-green dark:text-ghana-green" />
-                          {topic.title}
-                        </li>
-                      ))}
-                    </ul>
-                  </div>
-                  
-                  <div className="space-y-2 mb-4">
-                    <div className="flex items-center justify-between">
-                      <span className="text-sm font-medium">{module.progress}% Complete</span>
-                    </div>
-                    <Progress value={module.progress} variant="success" />
-                  </div>
-                  
-                  <Button
-                    variant="ghana"
-                    className="w-full"
-                    onClick={() => navigate(`/english/${module.id}`)}
-                  >
-                    {module.progress > 0 ? "Continue Learning" : "Start Learning"}
-                  </Button>
-                </CardContent>
-              </Card>
-            ))
-          ) : (
-            <div className="text-center py-12">
-              <h2 className="text-2xl font-bold mb-4">No Data Available</h2>
-              <p className="text-muted-foreground">Please check back later for available modules.</p>
-            </div>
-          )}
+          {modules.filter((module) => module.progress > 0).length > 0 ? (
+  modules.filter((module) => module.progress > 0).map((module) => (
+    <Card 
+      key={module.id}
+      className="overflow-hidden hover:shadow-md transition-all"
+    >
+      <div className="aspect-video relative overflow-hidden">
+        <img
+          src={module.image}
+          alt={module.title}
+          className="w-full h-full object-cover transition-transform hover:scale-105"
+        />
+        <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/70 to-transparent p-4">
+          <h2 className="text-white text-xl font-bold">{module.title}</h2>
         </div>
       </div>
+      <CardContent className="p-6">
+        <p className="mb-4">{module.description}</p>
+        <div className="mb-4">
+          <h4 className="text-sm font-semibold mb-2">Topics:</h4>
+          <ul className="space-y-1">
+            {module.topics.map((topic, index) => (
+              <li key={index} className="text-sm flex items-center">
+                <BookText className="mr-2 h-4 w-4 text-ghana-green dark:text-ghana-green" />
+                {topic.title}
+              </li>
+            ))}
+          </ul>
+        </div>
+        <div className="space-y-2 mb-4">
+          <div className="flex items-center justify-between">
+            <span className="text-sm font-medium">{module.progress}% Complete</span>
+          </div>
+          <Progress value={module.progress} variant="success" />
+        </div>
+        <Button
+          variant="ghana"
+          className="w-full"
+          onClick={() => navigate(`/english/${module.id}`)}
+        >
+          Continue Learning
+        </Button>
+      </CardContent>
+    </Card>
+  ))
+) : (
+  <div className="col-span-2 bg-card rounded-lg shadow-md p-8 text-center theme-transition">
+    <h2 className="text-2xl font-bold mb-4">Start Your Learning Journey</h2>
+    <p className="text-muted-foreground mb-6">Select a module to begin learning English Language.</p>
+    <Button
+      variant="ghana"
+      size="lg"
+      className="bg-ghana-green hover:bg-ghana-green-dark"
+      onClick={() => setIsSelectionModalOpen(true)}
+    >
+      Choose a Module
+    </Button>
+  </div>
+)}
+
+        </div>
+      </div>
+      {isSelectionModalOpen && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 z-50 flex justify-center items-center animate-fade-in">
+          <div className="bg-background p-8 rounded-lg shadow-xl w-full max-w-4xl relative animate-slide-in-up">
+            <Button
+              variant="ghost"
+              size="icon"
+              className="absolute top-4 right-4"
+              onClick={() => setIsSelectionModalOpen(false)}
+            >
+              <X className="h-6 w-6" />
+            </Button>
+            <ModuleSelectionWizard subject="english" onClose={() => setIsSelectionModalOpen(false)} />
+          </div>
+        </div>
+      )}
     </AppLayout>
   );
 }
