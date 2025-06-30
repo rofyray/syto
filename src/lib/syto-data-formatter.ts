@@ -1,4 +1,4 @@
-import { ChaleContentResponse } from './chale-config';
+import { ChaleContentResponse } from './chale-config.js';
 import { v4 as uuidv4 } from 'uuid';
 
 /**

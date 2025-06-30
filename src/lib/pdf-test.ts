@@ -1,7 +1,7 @@
 import { config } from 'dotenv';
 import { join } from 'path';
-import { PDFIngestionService } from './pdf-ingestion';
-import { DEFAULT_INGESTION_CONFIG, validateEnvironment } from './pdf-config';
+import { PDFIngestionService } from './pdf-ingestion.js';
+import { DEFAULT_INGESTION_CONFIG, validateEnvironment } from './pdf-config.js';
 
 // Load environment variables
 const envPath = join(process.cwd(), '.env.development');

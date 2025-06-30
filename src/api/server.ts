@@ -1,12 +1,12 @@
 import 'dotenv/config';
 import express, { Request, Response, NextFunction } from 'express';
 import cors from 'cors';
-import { rateLimiter } from './middleware/rate-limiter';
-import { errorHandler } from './middleware/error-handler';
-import { optionalAuth, logUserActivity } from './middleware/auth-middleware';
-import { cacheMiddleware, smartCache, getCacheStats, warmCache } from './middleware/cache';
-import { sanitizeInput } from './middleware/validation';
-import chaleRoutes from './routes/chale-routes';
+import { rateLimiter } from './middleware/rate-limiter.js';
+import { errorHandler } from './middleware/error-handler.js';
+import { optionalAuth, logUserActivity } from './middleware/auth-middleware.js';
+import { cacheMiddleware, smartCache, getCacheStats, warmCache } from './middleware/cache.js';
+import { sanitizeInput } from './middleware/validation.js';
+import chaleRoutes from './routes/chale-routes.js';
 
 /**
  * Chale AI API Server

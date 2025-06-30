@@ -3,14 +3,14 @@
  * Handles all database operations for student-specific content and progress tracking
  */
 
-import { supabase } from './supabase';
+import { supabase } from './supabase.js';
 import type { 
   ChaleContentRequest, 
   ChaleModuleResponse, 
   ChaleTopicResponse, 
   ChaleExerciseResponse, 
   ChaleQuestionResponse 
-} from '../types/chale';
+} from '../types/chale.js';
 
 // ============================================================================
 // TYPE DEFINITIONS

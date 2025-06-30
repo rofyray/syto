@@ -1,4 +1,4 @@
-import { IngestionConfig } from './pdf-ingestion';
+import { IngestionConfig } from './pdf-ingestion.js';
 
 /**
  * Configuration for PDF ingestion pipeline

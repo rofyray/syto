@@ -2,12 +2,12 @@ import { Handler } from '@netlify/functions';
 import serverless from 'serverless-http';
 import express, { Request, Response } from 'express';
 import cors from 'cors';
-import { rateLimiter } from '../middleware/rate-limiter';
-import { errorHandler } from '../middleware/error-handler';
-import { authenticateUser, optionalAuth, logUserActivity } from '../middleware/auth-middleware';
-import { cacheMiddleware, smartCache } from '../middleware/cache';
-import { sanitizeInput } from '../middleware/validation';
-import chaleRoutes from '../routes/chale-routes';
+import { rateLimiter } from '../middleware/rate-limiter.js';
+import { errorHandler } from '../middleware/error-handler.js';
+import { authenticateUser, optionalAuth, logUserActivity } from '../middleware/auth-middleware.js';
+import { cacheMiddleware, smartCache } from '../middleware/cache.js';
+import { sanitizeInput } from '../middleware/validation.js';
+import chaleRoutes from '../routes/chale-routes.js';
 
 // Initialize Express app
 const app = express();

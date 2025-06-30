@@ -1,5 +1,5 @@
-import { ChaleContentRequest, ChaleContentResponse } from './chale-config';
-import { chaleAgent } from './chale-agent';
+import { ChaleContentRequest, ChaleContentResponse } from './chale-config.js';
+import { chaleAgent } from './chale-agent.js';
 
 /**
  * Specialized content generation functions for different educational content types

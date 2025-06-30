@@ -1,7 +1,7 @@
 import { openai } from '@ai-sdk/openai';
 import { generateText } from 'ai';
-import { createChaleAgent, generateChaleSystemPrompt, ChaleContentRequest, ChaleContentResponse, validateChaleContent } from './chale-config';
-import { getCurriculumContext } from './weaviate-client';
+import { createChaleAgent, generateChaleSystemPrompt, ChaleContentRequest, ChaleContentResponse, validateChaleContent } from './chale-config.js';
+import { getCurriculumContext } from './weaviate-client.js';
 import { v4 as uuidv4 } from 'uuid';
 
 /**

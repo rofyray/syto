@@ -155,13 +155,13 @@ export const cacheMiddleware = (ttl: number = 30 * 60 * 1000): RequestHandler =>
     // Store original res.json to intercept response
     const originalJson = res.json.bind(res);
     
-    res.json = function(data: any) {
+    res.json = function(data: any): Response {
       // Cache successful responses
       if (res.statusCode >= 200 && res.statusCode < 300) {
         cache.set(req, data, ttl);
         console.log(`Cached response for ${req.method} ${req.path}`);
       }
-      originalJson(data);
+      return originalJson(data);
     };
     
     next();
@@ -210,14 +210,14 @@ export const smartCache: RequestHandler = (req, res, next) => {
   // Store original res.json to intercept response
   const originalJson = res.json.bind(res);
   
-  res.json = function(data: any) {
+  res.json = function(data: any): Response {
     // Cache successful responses
     if (res.statusCode >= 200 && res.statusCode < 300) {
       cache.set(req, data, ttl);
       console.log(`Smart cached ${type} generation for ${ttl}ms`);
     }
     
-    originalJson(data);
+    return originalJson(data);
   };
   
   next();

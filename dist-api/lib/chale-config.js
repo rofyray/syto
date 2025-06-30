@@ -1,71 +1,59 @@
 import { Pica } from '@picahq/ai';
-import { ChaleContentRequest, ChaleContentResponse } from '../types/chale.js';
-
-// Re-export types for other modules
-export type { ChaleContentRequest, ChaleContentResponse } from '../types/chale.js';
-
 /**
  * Chale AI Agent Configuration
  * Educational content generator for Ghanaian primary students (grades 4-6)
  */
-
 // Initialize Pica with Weaviate and OpenAI connectors
 export function createChaleAgent() {
-  // For testing/development, allow a mock implementation if PICA_SECRET_KEY is not available
-  if (!process.env.PICA_SECRET_KEY) {
-    console.warn('PICA_SECRET_KEY not found, using mock implementation');
-    // Return a mock Pica instance with minimal required methods
-    return {
-      generateSystemPrompt: async () => 'Mock system prompt for testing',
-      // Add other methods as needed for testing
-    } as unknown as Pica;
-  }
-
-  return new Pica(process.env.PICA_SECRET_KEY, {
-    connectors: ['weaviate', 'openai'], // Specific connectors for Chale
-    knowledgeAgent: true, // Enable for educational content generation
-    authkit: false // Not needed for internal agent
-  });
+    // For testing/development, allow a mock implementation if PICA_SECRET_KEY is not available
+    if (!process.env.PICA_SECRET_KEY) {
+        console.warn('PICA_SECRET_KEY not found, using mock implementation');
+        // Return a mock Pica instance with minimal required methods
+        return {
+            generateSystemPrompt: async () => 'Mock system prompt for testing',
+            // Add other methods as needed for testing
+        };
+    }
+    return new Pica(process.env.PICA_SECRET_KEY, {
+        connectors: ['weaviate', 'openai'], // Specific connectors for Chale
+        knowledgeAgent: true, // Enable for educational content generation
+        authkit: false // Not needed for internal agent
+    });
 }
-
 // Create and export the chaleAgent instance
 export const chaleAgent = createChaleAgent();
-
 // Add generateContent method to the agent
-export const generateContent = async (request: ChaleContentRequest): Promise<ChaleContentResponse> => {
-  // This is a simplified implementation - in practice, you'd use Pica's full capabilities
-  // For now, return a mock response that matches the expected structure
-  const mockResponse: ChaleContentResponse = {
-    id: `chale_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
-    type: request.type,
-    title: request.title,
-    description: `Generated ${request.type} for ${request.subject} grade ${request.grade}`,
-    subject: request.subject,
-    grade: request.grade,
-    content: {},
-    metadata: {
-      difficulty: request.difficulty || 'medium',
-      culturalContext: 'ghanaian_references_used',
-      learningObjectives: [`Learn about ${request.topic}`],
-      estimatedDuration: '30 minutes',
-      prerequisites: [],
-      ghanaianContext: true
-    },
-    exercises: [],
-    questions: [],
-    topics: []
-  };
-
-  return mockResponse;
+export const generateContent = async (request) => {
+    // This is a simplified implementation - in practice, you'd use Pica's full capabilities
+    // For now, return a mock response that matches the expected structure
+    const mockResponse = {
+        id: `chale_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
+        type: request.type,
+        title: request.title,
+        description: `Generated ${request.type} for ${request.subject} grade ${request.grade}`,
+        subject: request.subject,
+        grade: request.grade,
+        content: {},
+        metadata: {
+            difficulty: request.difficulty || 'medium',
+            culturalContext: 'ghanaian_references_used',
+            learningObjectives: [`Learn about ${request.topic}`],
+            estimatedDuration: '30 minutes',
+            prerequisites: [],
+            ghanaianContext: true
+        },
+        exercises: [],
+        questions: [],
+        topics: []
+    };
+    return mockResponse;
 };
-
 /**
  * Generate Chale's system prompt with persona and constraints
  */
-export async function generateChaleSystemPrompt(pica: Pica): Promise<string> {
-  const basePicaPrompt = await pica.generateSystemPrompt();
-  
-  return `${basePicaPrompt}
+export async function generateChaleSystemPrompt(pica) {
+    const basePicaPrompt = await pica.generateSystemPrompt();
+    return `${basePicaPrompt}
 
 CHALE PERSONA & INSTRUCTIONS:
 You are Chale, a caring and friendly Ghanaian primary school teacher AI agent specializing in creating educational content for Ghanaian students.
@@ -151,22 +139,19 @@ QUALITY STANDARDS:
 
 Remember: You are here to help Ghanaian children learn and grow through quality, culturally relevant education. Every piece of content you create should reflect this mission.`;
 }
-
 /**
  * Validation function for Chale content
  */
-export function validateChaleContent(content: any): content is ChaleContentResponse {
-  return (
-    content &&
-    typeof content.id === 'string' &&
-    typeof content.title === 'string' &&
-    typeof content.description === 'string' &&
-    typeof content.subject === 'string' &&
-    typeof content.grade === 'number' &&
-    content.grade >= 4 && content.grade <= 6 &&
-    ['english', 'mathematics'].includes(content.subject) &&
-    content.metadata &&
-    typeof content.metadata.difficulty === 'string' &&
-    ['easy', 'medium', 'hard'].includes(content.metadata.difficulty)
-  );
+export function validateChaleContent(content) {
+    return (content &&
+        typeof content.id === 'string' &&
+        typeof content.title === 'string' &&
+        typeof content.description === 'string' &&
+        typeof content.subject === 'string' &&
+        typeof content.grade === 'number' &&
+        content.grade >= 4 && content.grade <= 6 &&
+        ['english', 'mathematics'].includes(content.subject) &&
+        content.metadata &&
+        typeof content.metadata.difficulty === 'string' &&
+        ['easy', 'medium', 'hard'].includes(content.metadata.difficulty));
 }
