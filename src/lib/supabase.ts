@@ -1,8 +1,24 @@
 import { createClient } from '@supabase/supabase-js';
 
-// Fix TypeScript build errors by using type assertion
-const supabaseUrl = (import.meta.env as any).VITE_SUPABASE_URL as string;
-const supabaseAnonKey = (import.meta.env as any).VITE_SUPABASE_ANON_KEY as string;
+// Handle environment variables for both browser (Vite) and Node.js environments
+let supabaseUrl: string;
+let supabaseAnonKey: string;
+
+// Check if we're in a browser environment (Vite/frontend)
+if (typeof window !== 'undefined' && typeof import.meta !== 'undefined') {
+  // Frontend (Vite) environment
+  supabaseUrl = import.meta.env?.VITE_SUPABASE_URL as string;
+  supabaseAnonKey = import.meta.env?.VITE_SUPABASE_ANON_KEY as string;
+} else {
+  // Node.js (API) environment
+  supabaseUrl = process.env.SUPABASE_URL || '';
+  supabaseAnonKey = process.env.SUPABASE_ANON_KEY || '';
+}
+
+// Validate that we have the required environment variables
+if (!supabaseUrl || !supabaseAnonKey) {
+  console.error('Missing Supabase environment variables');
+}
 
 export const supabase = createClient(supabaseUrl, supabaseAnonKey);
 
