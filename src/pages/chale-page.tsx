@@ -5,8 +5,8 @@ import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { useAuthStore } from "@/stores/auth-store";
 
-// Placeholder avatar URL - in production, this would be from Tavus
-const CHALE_AVATAR_URL = "https://images.pexels.com/photos/2379005/pexels-photo-2379005.jpeg?auto=compress&cs=tinysrgb&w=300";
+// Use local Chale image
+import chaleImage from "../../chale/chale.png";
 
 interface Message {
   id: string;
@@ -233,7 +233,7 @@ export function ChalePage() {
               <div className="flex flex-col items-center">
                 <div className="mb-4 h-32 w-32 overflow-hidden rounded-full border-4 border-ghana-gold">
                   <img
-                    src={CHALE_AVATAR_URL}
+                    src={chaleImage}
                     alt="Chale AI Assistant"
                     className="h-full w-full object-cover"
                   />
