@@ -15,6 +15,7 @@ import { ResetPasswordPage } from '@/pages/reset-password-page';
 import { ProfilePage } from '@/pages/profile-page';
 import { NotFoundPage } from '@/pages/not-found-page';
 import { ChalePage } from '@/pages/chale-page';
+import HackathonBadge from '@/components/layout/HackathonBadge';
 
 // Auth protection wrapper component
 interface ProtectedRouteProps {
@@ -64,6 +65,7 @@ function App() {
         </div>
       )}
       
+            <HackathonBadge />
       <Routes>
         {/* Public routes */}
         <Route path="/" element={<HomePage />} />
