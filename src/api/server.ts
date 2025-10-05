@@ -6,7 +6,8 @@ import { errorHandler } from './middleware/error-handler.js';
 import { optionalAuth, logUserActivity } from './middleware/auth-middleware.js';
 import { cacheMiddleware, smartCache, getCacheStats, warmCache } from './middleware/cache.js';
 import { sanitizeInput } from './middleware/validation.js';
-import chaleRoutes from './routes/chale-routes.js';
+// import chaleRoutes from './routes/chale-routes.js'; // OLD: Pica-based routes
+import chaleRoutes from './routes/chale-routes-new.js'; // NEW: Claude SDK routes
 
 /**
  * Chale AI API Server

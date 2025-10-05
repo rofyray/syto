@@ -43,7 +43,7 @@ export function ChalePage() {
   
   const handleSendMessage = async () => {
     if (!message.trim()) return;
-    
+
     // Add user message
     const userMessage: Message = {
       id: Date.now().toString(),
@@ -51,33 +51,88 @@ export function ChalePage() {
       sender: "user",
       timestamp: new Date(),
     };
-    
+
     setMessages((prev) => [...prev, userMessage]);
     setMessage("");
     setIsProcessing(true);
-    
-    // Simulate API call to Chale AI service
-    setTimeout(() => {
-      // This would be replaced with an actual API call to the AI service
-      const mockResponses = [
-        "I understand you're asking about fractions. In Primary 5 Mathematics, we learn that a fraction represents a part of a whole. For example, in the fraction 3/4, the numerator (3) tells us how many parts we have, and the denominator (4) tells us how many equal parts the whole is divided into.",
-        "Great question about adjectives! In English grammar, adjectives are words that describe or modify nouns. For example, in 'the beautiful flower', 'beautiful' is an adjective that describes the noun 'flower'. In Ghanaian literature, we often use adjectives to create vivid descriptions of our surroundings.",
-        "When solving word problems in Mathematics, it's important to read carefully and identify what's being asked. Let's break down your question step by step...",
-        "In English reading comprehension, we need to identify the main idea and supporting details. The passage you're asking about discusses traditional Ghanaian celebrations. Let's analyze it together..."
-      ];
-      
-      const randomResponse = mockResponses[Math.floor(Math.random() * mockResponses.length)];
-      
-      const chaleResponse: Message = {
+
+    try {
+      // Call new Claude-powered Chale API with streaming
+      const response = await fetch('/api/chale/chat', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          content: userMessage.content,
+          subject: 'mathematics', // Could be dynamic based on context
+          grade: profile?.grade_level || 5,
+        }),
+      });
+
+      if (!response.body) {
+        throw new Error('Response body is null');
+      }
+
+      const reader = response.body.getReader();
+      const decoder = new TextDecoder();
+      let chaleResponseText = '';
+      let chaleMessageId = Date.now().toString();
+
+      while (true) {
+        const { done, value } = await reader.read();
+        if (done) break;
+
+        const chunk = decoder.decode(value);
+        const lines = chunk.split('\n');
+
+        for (const line of lines) {
+          if (line.startsWith('data: ')) {
+            const data = line.slice(6);
+            if (data === '[DONE]') break;
+
+            try {
+              const parsed = JSON.parse(data);
+              if (parsed.chunk) {
+                chaleResponseText += parsed.chunk;
+
+                // Update UI with streaming response
+                setMessages((prev) => {
+                  const lastMessage = prev[prev.length - 1];
+                  if (lastMessage?.id === chaleMessageId && lastMessage?.sender === 'chale') {
+                    return [
+                      ...prev.slice(0, -1),
+                      { ...lastMessage, content: chaleResponseText },
+                    ];
+                  } else {
+                    return [
+                      ...prev,
+                      {
+                        id: chaleMessageId,
+                        content: chaleResponseText,
+                        sender: 'chale',
+                        timestamp: new Date(),
+                      },
+                    ];
+                  }
+                });
+              }
+            } catch (e) {
+              // Skip invalid JSON
+            }
+          }
+        }
+      }
+    } catch (error) {
+      console.error('Error sending message:', error);
+      const errorMessage: Message = {
         id: Date.now().toString(),
-        content: randomResponse,
+        content: "Sorry chale, I'm having trouble responding right now. Please try again!",
         sender: "chale",
         timestamp: new Date(),
       };
-      
-      setMessages((prev) => [...prev, chaleResponse]);
+      setMessages((prev) => [...prev, errorMessage]);
+    } finally {
       setIsProcessing(false);
-    }, 2000);
+    }
   };
   
   const handleKeyDown = (e: React.KeyboardEvent) => {

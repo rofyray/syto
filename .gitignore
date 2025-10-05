@@ -1,42 +1,114 @@
 # See https://help.github.com/articles/ignoring-files/ for more about ignoring files.
 
-# Dependencies
-/node_modules
-/.pnp
+# ============================================================================
+# DEPENDENCIES
+# ============================================================================
+node_modules/
+.pnp/
 .pnp.js
+.yarn/
+package-lock.json
+yarn.lock
+pnpm-lock.yaml
 
-# Testing
-/coverage
-
-# Next.js
-/.next/
-/out/
-
-# Vite
-.vite/
+# ============================================================================
+# BUILD OUTPUT
+# ============================================================================
 dist/
+dist-api/
+build/
+.next/
+out/
+.vite/
 *.tsbuildinfo
+.turbo/
 
-# Production
-/build
-
-# Misc
-.DS_Store
-*.pem
-
-# Local Environment Variables
+# ============================================================================
+# ENVIRONMENT VARIABLES
+# ============================================================================
+.env
 .env.local
+.env.development
 .env.development.local
+.env.test
 .env.test.local
+.env.production
 .env.production.local
+.env*.local
 
-# Log files
+# ============================================================================
+# LOGS
+# ============================================================================
+*.log
 npm-debug.log*
 yarn-debug.log*
 yarn-error.log*
 pnpm-debug.log*
+lerna-debug.log*
 
-# Editor directories and files
+# ============================================================================
+# TESTING
+# ============================================================================
+coverage/
+.nyc_output/
+*.coverage
+
+# ============================================================================
+# DOCUMENTATION (except README.md)
+# ============================================================================
+CLAUDE.md
+REFACTOR_PLAN.md
+IMPLEMENTATION_SUMMARY.md
+GETTING_STARTED.md
+.gitignore-verification.md
+REFACTORING_COMPLETE.txt
+docs/*.md
+!docs/README.md
+!README.md
+
+# ============================================================================
+# TEST SCRIPTS (internal use only)
+# ============================================================================
+scripts/test-*.ts
+scripts/test-*.js
+scripts/test-comprehensive-extraction.ts
+scripts/test-chale-api.ts
+
+# ============================================================================
+# DATA & CACHE
+# ============================================================================
+data/
+!data/.gitkeep
+.cache/
+*.db
+*.sqlite
+
+# ============================================================================
+# TEMPORARY FILES
+# ============================================================================
+*.tmp
+*.temp
+*.swp
+*.swo
+*~
+.#*
+
+# ============================================================================
+# OS FILES
+# ============================================================================
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db
+Desktop.ini
+$RECYCLE.BIN/
+
+# ============================================================================
+# EDITOR & IDE
+# ============================================================================
 .vscode/
 .idea/
 *.suo
@@ -44,3 +116,15 @@ pnpm-debug.log*
 *.njsproj
 *.sln
 *.sw?
+*.swp
+.project
+.settings/
+.classpath
+
+# ============================================================================
+# MISC
+# ============================================================================
+*.pem
+*.key
+*.cert
+.bolt/

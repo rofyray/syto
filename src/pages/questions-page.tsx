@@ -32,61 +32,47 @@ export function QuestionsPage() {
 
   useEffect(() => {
     if (topicName && exerciseName && subject && profile) {
-      const prompt = `
-        Based on the Ghana primary school curriculum for grade ${profile.grade}, subject ${subject}, topic "${topicName}", and exercise "${exerciseName}",
-        please generate exactly 5 multiple-choice questions.
-
-        The output MUST be a single, valid JSON array of objects, where each object represents a question and has the following structure:
-        {
-          "question_text": "<The question text>",
-          "options": ["<Option A>", "<Option B>", "<Option C>", "<Option D>"],
-          "correct_answer": "<The correct option>"
-        }
-
-        Do not include any introductory text, explanations, or markdown formatting. The response should be only the JSON array.
-      `;
-      
-      const fetchStream = async () => {
+      const fetchQuestions = async () => {
         try {
-          const response = await fetch('/api/chale', {
+          const response = await fetch('/api/chale/generate-questions', {
             method: 'POST',
             headers: {
               'Content-Type': 'application/json',
             },
-            body: JSON.stringify({ messages: [{ role: 'user', content: prompt }] }),
+            body: JSON.stringify({
+              topic: topicName,
+              subject: subject,
+              grade: profile.grade_level,
+              difficulty: 'medium',
+              count: 5,
+            }),
           });
 
-          if (!response.body) {
-            throw new Error('Response body is null');
+          if (!response.ok) {
+            throw new Error(`HTTP error! status: ${response.status}`);
           }
 
-          const reader = response.body.getReader();
-          const decoder = new TextDecoder();
-          let fullResponse = '';
+          const data = await response.json();
 
-          while (true) {
-            const { done, value } = await reader.read();
-            if (done) break;
-            fullResponse += decoder.decode(value, { stream: true });
+          if (data.success && data.questions) {
+            // Transform to match expected format
+            const transformedQuestions = data.questions.map((q: any) => ({
+              question_text: q.questionText || q.question_text,
+              options: q.options,
+              correct_answer: q.correctAnswer || q.correct_answer,
+            }));
+            setGeneratedQuestions(transformedQuestions);
+          } else {
+            console.error('Invalid response format:', data);
           }
-
-          // Attempt to parse the full response as JSON
-          try {
-            const parsedQuestions = JSON.parse(fullResponse);
-            setGeneratedQuestions(parsedQuestions);
-          } catch (jsonError) {
-            console.error('Failed to parse JSON from AI response:', jsonError);
-            // Handle JSON parsing error, maybe show a message to the user
-          }
-
         } catch (error) {
-          console.error('Error fetching stream:', error);
+          console.error('Error fetching questions:', error);
         } finally {
           setIsLoading(false);
         }
       };
 
-      fetchStream();
+      fetchQuestions();
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [topicName, exerciseName, subject, profile]);
