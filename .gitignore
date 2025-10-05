@@ -56,15 +56,7 @@ coverage/
 # ============================================================================
 # DOCUMENTATION (except README.md)
 # ============================================================================
-CLAUDE.md
-REFACTOR_PLAN.md
-IMPLEMENTATION_SUMMARY.md
-GETTING_STARTED.md
-.gitignore-verification.md
-REFACTORING_COMPLETE.txt
-GITIGNORE_ANALYSIS.md
-docs/*.md
-!docs/README.md
+*.md
 !README.md
 
 # ============================================================================
@@ -122,6 +114,11 @@ $RECYCLE.BIN/
 .project
 .settings/
 .classpath
+
+# ============================================================================
+# CLAUDE CODE
+# ============================================================================
+.claude/
 
 # ============================================================================
 # MISC

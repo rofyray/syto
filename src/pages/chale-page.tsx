@@ -5,8 +5,8 @@ import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { useAuthStore } from "@/stores/auth-store";
 
-// Use local Chale image
-import chaleImage from "../../chale/chale.png";
+// Use local Chale image from public folder
+import chaleImage from "/chale.png";
 
 interface Message {
   id: string;
