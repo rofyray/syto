@@ -62,6 +62,7 @@ IMPLEMENTATION_SUMMARY.md
 GETTING_STARTED.md
 .gitignore-verification.md
 REFACTORING_COMPLETE.txt
+GITIGNORE_ANALYSIS.md
 docs/*.md
 !docs/README.md
 !README.md
@@ -77,7 +78,8 @@ scripts/test-chale-api.ts
 # ============================================================================
 # DATA & CACHE
 # ============================================================================
-data/
+# Ignore all data files but keep the directory structure
+data/**/*
 !data/.gitkeep
 .cache/
 *.db
