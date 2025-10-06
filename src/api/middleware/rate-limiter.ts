@@ -1,7 +1,7 @@
 import rateLimit from 'express-rate-limit';
 
 /**
- * Rate limiting middleware for Chale API
+ * Rate limiting middleware for NAANO API
  * Prevents abuse and ensures fair usage of AI content generation
  */
 

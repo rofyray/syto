@@ -1,7 +1,7 @@
 import { Request, Response, NextFunction } from 'express';
 
 /**
- * Validation middleware for Chale API requests
+ * Validation middleware for NAANO API requests
  * Ensures all requests meet the required standards for educational content generation
  */
 

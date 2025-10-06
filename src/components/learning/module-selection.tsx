@@ -3,15 +3,15 @@ import { useNavigate } from "react-router-dom";
 import { useAuthStore } from "@/stores/auth-store";
 import { supabase } from "@/lib/supabase";
 import { getModulesByGradeAndSubject, getTopicsByModuleId, getExercisesByTopicId } from "@/lib/supabase";
-import { generateModule, generateTopic, generateExercise, generateQuestion } from "@/lib/chale-content-generators";
-import { ChaleSupabaseService } from "@/lib/supabase-chale";
+import { generateModule, generateTopic, generateExercise, generateQuestion } from "@/lib/naano-content-generators";
+import { NAANOSupabaseService } from "@/lib/supabase-naano";
 import { 
   transformToModuleResponse, 
   transformToTopicResponse, 
   transformToExerciseResponse, 
   transformToQuestionResponse,
-  ChaleContentRequest
-} from "@/types/chale";
+  NAANOContentRequest
+} from "@/types/naano";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -204,7 +204,7 @@ export function ModuleSelection({ subject }: ModuleSelectionProps) {
       
       // Save the generated content to Supabase
       // 1. Create module request for Supabase saving
-      const moduleRequest: ChaleContentRequest = {
+      const moduleRequest: NAANOContentRequest = {
         type: 'module',
         subject: subject as 'english' | 'mathematics',
         grade: (profile?.grade_level || 4) as 4 | 5 | 6,
@@ -233,7 +233,7 @@ export function ModuleSelection({ subject }: ModuleSelectionProps) {
       }, moduleRequest as any);
       
       // Save the module
-      const studentModule = await ChaleSupabaseService.saveStudentModule(
+      const studentModule = await NAANOSupabaseService.saveStudentModule(
         user.id,
         moduleResponse,
         moduleRequest as any, // Type cast to avoid TypeScript errors
@@ -241,7 +241,7 @@ export function ModuleSelection({ subject }: ModuleSelectionProps) {
       );
       
       // 2. Create topic request and transform to proper type
-      const topicRequest: ChaleContentRequest = {
+      const topicRequest: NAANOContentRequest = {
         type: 'topic',
         subject: subject as 'english' | 'mathematics',
         grade: (profile?.grade_level || 4) as 4 | 5 | 6,
@@ -272,7 +272,7 @@ export function ModuleSelection({ subject }: ModuleSelectionProps) {
       }, topicRequest as any);
       
       // Save the topic
-      const studentTopic = await ChaleSupabaseService.saveStudentTopic(
+      const studentTopic = await NAANOSupabaseService.saveStudentTopic(
         user.id,
         studentModule.id,
         topicResponse,
@@ -282,7 +282,7 @@ export function ModuleSelection({ subject }: ModuleSelectionProps) {
       );
       
       // 3. Create exercise request and transform to proper type
-      const exerciseRequest: ChaleContentRequest = {
+      const exerciseRequest: NAANOContentRequest = {
         type: 'exercise',
         subject: subject as 'english' | 'mathematics',
         grade: (profile?.grade_level || 4) as 4 | 5 | 6,
@@ -297,7 +297,7 @@ export function ModuleSelection({ subject }: ModuleSelectionProps) {
       const exerciseResponse = transformToExerciseResponse(exerciseContent, exerciseRequest as any);
       
       // Save the exercise
-      const studentExercise = await ChaleSupabaseService.saveStudentExercise(
+      const studentExercise = await NAANOSupabaseService.saveStudentExercise(
         user.id,
         studentTopic.id,
         exerciseResponse,
@@ -308,7 +308,7 @@ export function ModuleSelection({ subject }: ModuleSelectionProps) {
       
       // 4. Save the questions with proper transformations
       // Question 1 (Easy)
-      const question1Request: ChaleContentRequest = {
+      const question1Request: NAANOContentRequest = {
         type: 'question',
         subject: subject as 'english' | 'mathematics',
         grade: (profile?.grade_level || 4) as 4 | 5 | 6,
@@ -319,7 +319,7 @@ export function ModuleSelection({ subject }: ModuleSelectionProps) {
         orderIndex: 0
       };
       const question1Response = transformToQuestionResponse(question1Content, question1Request as any);
-      await ChaleSupabaseService.saveStudentQuestion(
+      await NAANOSupabaseService.saveStudentQuestion(
         user.id,
         studentExercise.id,
         question1Response,
@@ -329,7 +329,7 @@ export function ModuleSelection({ subject }: ModuleSelectionProps) {
       );
       
       // Question 2 (Medium)
-      const question2Request: ChaleContentRequest = {
+      const question2Request: NAANOContentRequest = {
         type: 'question',
         subject: subject as 'english' | 'mathematics',
         grade: (profile?.grade_level || 4) as 4 | 5 | 6,
@@ -340,7 +340,7 @@ export function ModuleSelection({ subject }: ModuleSelectionProps) {
         orderIndex: 1
       };
       const question2Response = transformToQuestionResponse(question2Content, question2Request as any);
-      await ChaleSupabaseService.saveStudentQuestion(
+      await NAANOSupabaseService.saveStudentQuestion(
         user.id,
         studentExercise.id,
         question2Response,
@@ -350,7 +350,7 @@ export function ModuleSelection({ subject }: ModuleSelectionProps) {
       );
       
       // Question 3 (Hard)
-      const question3Request: ChaleContentRequest = {
+      const question3Request: NAANOContentRequest = {
         type: 'question',
         subject: subject as 'english' | 'mathematics',
         grade: (profile?.grade_level || 4) as 4 | 5 | 6,
@@ -361,7 +361,7 @@ export function ModuleSelection({ subject }: ModuleSelectionProps) {
         orderIndex: 2
       };
       const question3Response = transformToQuestionResponse(question3Content, question3Request as any);
-      await ChaleSupabaseService.saveStudentQuestion(
+      await NAANOSupabaseService.saveStudentQuestion(
         user.id,
         studentExercise.id,
         question3Response,

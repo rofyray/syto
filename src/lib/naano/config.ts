@@ -1,6 +1,6 @@
 /**
- * Chale AI Agent Configuration
- * Centralized configuration for the Claude-powered Chale agent
+ * NAANO AI Agent Configuration
+ * Centralized configuration for the Claude-powered NAANO agent
  */
 
 export const CHALE_CONFIG = {
@@ -72,10 +72,10 @@ export const CHALE_CONFIG = {
 } as const;
 
 // Type for the config
-export type ChaleConfig = typeof CHALE_CONFIG;
+export type NAANOConfig = typeof CHALE_CONFIG;
 
 // Validation helper
-export function validateChaleConfig(): boolean {
+export function validateNAANOConfig(): boolean {
   const apiKey = process.env.ANTHROPIC_API_KEY;
 
   if (!apiKey) {
@@ -88,7 +88,7 @@ export function validateChaleConfig(): boolean {
     return false;
   }
 
-  console.log('✅ Chale configuration validated successfully');
+  console.log('✅ NAANO configuration validated successfully');
   return true;
 }
 

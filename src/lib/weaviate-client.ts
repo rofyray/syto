@@ -1,7 +1,7 @@
 import weaviate, { WeaviateClient } from 'weaviate-client';
 
 /**
- * Weaviate client configuration for Chale AI agent
+ * Weaviate client configuration for NAANO AI agent
  * Connects to curriculum databases (MathDB and ReadingDB)
  */
 

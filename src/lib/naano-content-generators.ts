@@ -1,5 +1,5 @@
-import { ChaleContentRequest, ChaleContentResponse } from './chale-config.js';
-import { chaleAgent } from './chale-agent.js';
+import { NAANOContentRequest, NAANOContentResponse } from './naano-config.js';
+import { naanoAgent } from './naano-agent.js';
 
 /**
  * Specialized content generation functions for different educational content types
@@ -14,8 +14,8 @@ export async function generateModule(
   grade: 4 | 5 | 6,
   moduleTitle: string,
   difficulty: 'easy' | 'medium' | 'hard' = 'medium'
-): Promise<ChaleContentResponse> {
-  const request: ChaleContentRequest = {
+): Promise<NAANOContentResponse> {
+  const request: NAANOContentRequest = {
     type: 'module',
     subject,
     grade,
@@ -25,7 +25,7 @@ export async function generateModule(
     context: `Create a comprehensive learning module for ${subject} grade ${grade} students focusing on ${moduleTitle}`
   };
 
-  return await chaleAgent.generateContent(request);
+  return await naanoAgent.generateContent(request);
 }
 
 /**
@@ -38,12 +38,12 @@ export async function generateTopic(
   topicTitle: string,
   moduleContext?: string,
   difficulty: 'easy' | 'medium' | 'hard' = 'medium'
-): Promise<ChaleContentResponse> {
+): Promise<NAANOContentResponse> {
   const contextInfo = moduleContext 
     ? `This topic is part of the module: ${moduleContext}` 
     : `This topic is part of the module: ${moduleTitle}`;
 
-  const request: ChaleContentRequest = {
+  const request: NAANOContentRequest = {
     type: 'topic',
     subject,
     grade,
@@ -53,7 +53,7 @@ export async function generateTopic(
     context: `Create a focused topic on ${topicTitle} for ${subject} grade ${grade}. ${contextInfo}`
   };
 
-  return await chaleAgent.generateContent(request);
+  return await naanoAgent.generateContent(request);
 }
 
 /**
@@ -66,12 +66,12 @@ export async function generateExercise(
   exerciseTitle: string,
   topicContext?: string,
   difficulty: 'easy' | 'medium' | 'hard' = 'medium'
-): Promise<ChaleContentResponse> {
+): Promise<NAANOContentResponse> {
   const contextInfo = topicContext 
     ? `This exercise should reinforce learning from the topic: ${topicContext}` 
     : '';
 
-  const request: ChaleContentRequest = {
+  const request: NAANOContentRequest = {
     type: 'exercise',
     subject,
     grade,
@@ -81,7 +81,7 @@ export async function generateExercise(
     context: `Create an engaging exercise on ${exerciseTitle} for ${subject} grade ${grade}. ${contextInfo}`
   };
 
-  return await chaleAgent.generateContent(request);
+  return await naanoAgent.generateContent(request);
 }
 
 /**
@@ -94,12 +94,12 @@ export async function generateQuestion(
   questionTitle: string,
   exerciseContext?: string,
   difficulty: 'easy' | 'medium' | 'hard' = 'medium'
-): Promise<ChaleContentResponse> {
+): Promise<NAANOContentResponse> {
   const contextInfo = exerciseContext 
     ? `This question is part of the exercise: ${exerciseContext}` 
     : '';
 
-  const request: ChaleContentRequest = {
+  const request: NAANOContentRequest = {
     type: 'question',
     subject,
     grade,
@@ -109,7 +109,7 @@ export async function generateQuestion(
     context: `Create a practice question about ${questionTitle} for ${subject} grade ${grade}. ${contextInfo}`
   };
 
-  return await chaleAgent.generateContent(request);
+  return await naanoAgent.generateContent(request);
 }
 
 /**
@@ -123,17 +123,17 @@ export async function generateLearningPath(
   exercisesPerTopic: number = 2,
   questionsPerExercise: number = 3
 ): Promise<{
-  module: ChaleContentResponse;
-  topics: ChaleContentResponse[];
-  exercises: ChaleContentResponse[];
-  questions: ChaleContentResponse[];
+  module: NAANOContentResponse;
+  topics: NAANOContentResponse[];
+  exercises: NAANOContentResponse[];
+  questions: NAANOContentResponse[];
 }> {
   try {
     // Generate the main module
     const module = await generateModule(subject, grade, pathTitle);
     
     // Generate topics for the module
-    const topics: ChaleContentResponse[] = [];
+    const topics: NAANOContentResponse[] = [];
     for (let i = 0; i < topicsCount; i++) {
       const topicTitle = `${pathTitle} - Topic ${i + 1}`;
       const topic = await generateTopic(subject, grade, pathTitle, topicTitle, module.title);
@@ -141,7 +141,7 @@ export async function generateLearningPath(
     }
 
     // Generate exercises for each topic
-    const exercises: ChaleContentResponse[] = [];
+    const exercises: NAANOContentResponse[] = [];
     for (const topic of topics) {
       for (let i = 0; i < exercisesPerTopic; i++) {
         const exerciseTitle = `${topic.title} - Exercise ${i + 1}`;
@@ -151,7 +151,7 @@ export async function generateLearningPath(
     }
 
     // Generate questions for each exercise
-    const questions: ChaleContentResponse[] = [];
+    const questions: NAANOContentResponse[] = [];
     for (const exercise of exercises) {
       for (let i = 0; i < questionsPerExercise; i++) {
         const questionTitle = `${exercise.title} - Question ${i + 1}`;
@@ -181,8 +181,8 @@ export async function generateCurriculumAlignedContent(
   grade: 4 | 5 | 6,
   curriculumTopic: string,
   contentType: 'module' | 'topic' | 'exercise' | 'question' = 'topic'
-): Promise<ChaleContentResponse> {
-  const request: ChaleContentRequest = {
+): Promise<NAANOContentResponse> {
+  const request: NAANOContentRequest = {
     type: contentType,
     subject,
     grade,
@@ -191,10 +191,10 @@ export async function generateCurriculumAlignedContent(
     context: `Generate ${contentType} content strictly aligned with Ghana's national curriculum for ${subject} grade ${grade}, focusing on ${curriculumTopic}`
   };
 
-  const content = await chaleAgent.generateContent(request);
+  const content = await naanoAgent.generateContent(request);
   
   // Validate curriculum alignment
-  const isValid = await chaleAgent.validateContent(content);
+  const isValid = await naanoAgent.validateContent(content);
   if (!isValid) {
     throw new Error(`Generated content does not meet Ghana curriculum standards for ${curriculumTopic}`);
   }
@@ -211,8 +211,8 @@ export async function generateGhanaianContextContent(
   topic: string,
   culturalContext: string,
   contentType: 'module' | 'topic' | 'exercise' | 'question' = 'exercise'
-): Promise<ChaleContentResponse> {
-  const request: ChaleContentRequest = {
+): Promise<NAANOContentResponse> {
+  const request: NAANOContentRequest = {
     type: contentType,
     subject,
     grade,
@@ -221,7 +221,7 @@ export async function generateGhanaianContextContent(
     context: `Create ${contentType} content about ${topic} with strong Ghanaian cultural context: ${culturalContext}. Include local references, names, foods, places, and customs naturally.`
   };
 
-  return await chaleAgent.generateContent(request);
+  return await naanoAgent.generateContent(request);
 }
 
 /**
@@ -233,8 +233,8 @@ export async function generateAssessment(
   assessmentTopic: string,
   questionCount: number = 5,
   difficulty: 'easy' | 'medium' | 'hard' = 'medium'
-): Promise<ChaleContentResponse[]> {
-  const questions: ChaleContentResponse[] = [];
+): Promise<NAANOContentResponse[]> {
+  const questions: NAANOContentResponse[] = [];
   
   for (let i = 0; i < questionCount; i++) {
     const questionTitle = `${assessmentTopic} - Assessment Question ${i + 1}`;
@@ -257,12 +257,12 @@ export async function generateProgressiveContent(
   topic: string,
   contentType: 'exercise' | 'question' = 'exercise'
 ): Promise<{
-  easy: ChaleContentResponse;
-  medium: ChaleContentResponse;
-  hard: ChaleContentResponse;
+  easy: NAANOContentResponse;
+  medium: NAANOContentResponse;
+  hard: NAANOContentResponse;
 }> {
   const [easy, medium, hard] = await Promise.all([
-    chaleAgent.generateContent({
+    naanoAgent.generateContent({
       type: contentType,
       subject,
       grade,
@@ -270,7 +270,7 @@ export async function generateProgressiveContent(
       topic,
       difficulty: 'easy'
     }),
-    chaleAgent.generateContent({
+    naanoAgent.generateContent({
       type: contentType,
       subject,
       grade,
@@ -278,7 +278,7 @@ export async function generateProgressiveContent(
       topic,
       difficulty: 'medium'
     }),
-    chaleAgent.generateContent({
+    naanoAgent.generateContent({
       type: contentType,
       subject,
       grade,
@@ -295,17 +295,17 @@ export async function generateProgressiveContent(
  * Batch generate content with error handling
  */
 export async function batchGenerateContent(
-  requests: ChaleContentRequest[]
+  requests: NAANOContentRequest[]
 ): Promise<{
-  successful: ChaleContentResponse[];
-  failed: { request: ChaleContentRequest; error: string }[];
+  successful: NAANOContentResponse[];
+  failed: { request: NAANOContentRequest; error: string }[];
 }> {
-  const successful: ChaleContentResponse[] = [];
-  const failed: { request: ChaleContentRequest; error: string }[] = [];
+  const successful: NAANOContentResponse[] = [];
+  const failed: { request: NAANOContentRequest; error: string }[] = [];
 
   for (const request of requests) {
     try {
-      const content = await chaleAgent.generateContent(request);
+      const content = await naanoAgent.generateContent(request);
       successful.push(content);
       
       // Small delay between requests

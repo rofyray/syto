@@ -7,7 +7,7 @@ import { errorHandler } from '../middleware/error-handler.js';
 import { authenticateUser, optionalAuth, logUserActivity } from '../middleware/auth-middleware.js';
 import { cacheMiddleware, smartCache } from '../middleware/cache.js';
 import { sanitizeInput } from '../middleware/validation.js';
-import chaleRoutes from '../routes/chale-routes.js';
+import naanoRoutes from '../routes/naano-routes.js';
 
 // Initialize Express app
 const app = express();
@@ -33,7 +33,7 @@ app.use(rateLimiter as express.RequestHandler);
 app.get('/health', cacheMiddleware(5 * 60 * 1000) as express.RequestHandler, (_req: Request, res: Response): void => {
   res.json({
     status: 'healthy',
-    service: 'chale-api-server',
+    service: 'naano-api-server',
     timestamp: new Date().toISOString(),
     version: '1.0.0',
     environment: process.env.NODE_ENV || 'production'
@@ -41,18 +41,18 @@ app.get('/health', cacheMiddleware(5 * 60 * 1000) as express.RequestHandler, (_r
 });
 
 // API routes with authentication and activity logging
-app.use('/api/chale', 
+app.use('/api/naano', 
   optionalAuth as express.RequestHandler,           // Optional authentication
   logUserActivity as express.RequestHandler,        // Log user activity
   smartCache as express.RequestHandler,            // Smart caching based on content type
-  chaleRoutes            // Main Chale routes
+  naanoRoutes            // Main NAANO routes
 );
 
 // Protected routes that require authentication
-app.use('/api/chale/protected',
+app.use('/api/naano/protected',
   authenticateUser as express.RequestHandler,       // Require authentication
   logUserActivity as express.RequestHandler,        // Log user activity
-  chaleRoutes            // Main Chale routes
+  naanoRoutes            // Main NAANO routes
 );
 
 // Global error handler (must be last)

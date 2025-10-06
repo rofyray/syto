@@ -5,7 +5,7 @@ import Anthropic from '@anthropic-ai/sdk';
 // REQUEST SCHEMAS & TYPES
 // ============================================================================
 
-export const ChaleRequestSchema = z.object({
+export const NAANORequestSchema = z.object({
   type: z.enum(['chat', 'generate_questions', 'explain_concept', 'validate_answer']),
   subject: z.enum(['english', 'mathematics']),
   grade: z.number().min(4).max(6),
@@ -17,7 +17,7 @@ export const ChaleRequestSchema = z.object({
   }).optional(),
 });
 
-export type ChaleRequest = z.infer<typeof ChaleRequestSchema>;
+export type NAANORequest = z.infer<typeof NAANORequestSchema>;
 
 // ============================================================================
 // TOOL SCHEMAS
@@ -66,7 +66,7 @@ export interface Question {
   culturalContext?: string;
 }
 
-export interface ChaleResponse {
+export interface NAANOResponse {
   id: string;
   type: 'chat' | 'questions' | 'explanation' | 'validation';
   content: string | Question[];

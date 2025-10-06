@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useEffect } from 'react';
 import { Routes, Route, Navigate } from 'react-router-dom';
 import { useAuthStore } from "@/stores/auth-store";
 
@@ -14,8 +14,11 @@ import { SignupPage } from '@/pages/signup-page';
 import { ResetPasswordPage } from '@/pages/reset-password-page';
 import { ProfilePage } from '@/pages/profile-page';
 import { NotFoundPage } from '@/pages/not-found-page';
-import { ChalePage } from '@/pages/chale-page';
-import HackathonBadge from '@/components/layout/HackathonBadge';
+import { NAANOPage } from '@/pages/naano-page';
+import { HelpCenterPage } from '@/pages/help-center-page';
+import { PrivacyPolicyPage } from '@/pages/privacy-policy-page';
+import { TermsOfServicePage } from '@/pages/terms-of-service-page';
+import { AuthSelectionPage } from '@/pages/auth-selection-page';
 
 // Auth protection wrapper component
 interface ProtectedRouteProps {
@@ -24,55 +27,39 @@ interface ProtectedRouteProps {
 
 function ProtectedRoute({ element }: ProtectedRouteProps) {
   const { user, initialized } = useAuthStore();
-  
-  // If auth is still initializing, show nothing
-  if (!initialized) {
-    return null;
-  }
-  
-  // If not logged in, redirect to login
-  if (!user) {
+
+  // Don't block rendering - let routes handle their own loading states
+  // Just redirect if not authenticated once initialized
+  if (initialized && !user) {
     return <Navigate to="/login" replace />;
   }
-  
-  // Otherwise, render the protected component
+
+  // Render immediately - don't wait for auth
   return <>{element}</>;
 }
 
 function App() {
-  // Add auth initialization
-  const { initialize, initialized } = useAuthStore();
-  const [initAttempted, setInitAttempted] = useState(false);
-  
+  // Initialize auth immediately on mount
+  const { initialize } = useAuthStore();
+
   useEffect(() => {
-    if (!initialized && !initAttempted) {
-      console.log('App: Initializing auth store...');
-      initialize();
-      setInitAttempted(true);
-    }
-  }, [initialize, initialized, initAttempted]);
-  
-  console.log('App rendering - Auth initialized:', initialized);
-  
+    // Run initialization immediately, don't wait
+    initialize();
+  }, [initialize]);
+
   return (
     <div className="min-h-screen bg-background theme-transition">
-      {!initialized && (
-        <div className="fixed inset-0 flex items-center justify-center bg-background/90 backdrop-blur-sm theme-transition">
-          <div className="text-center">
-            <div className="inline-block h-8 w-8 animate-spin rounded-full border-4 border-primary border-t-transparent"></div>
-            <p className="mt-2 text-muted-foreground">Initializing application...</p>
-          </div>
-        </div>
-      )}
-      
-            <HackathonBadge />
       <Routes>
         {/* Public routes */}
         <Route path="/" element={<HomePage />} />
+        <Route path="/get-started" element={<AuthSelectionPage />} />
         <Route path="/login" element={<LoginPage />} />
         <Route path="/signup" element={<SignupPage />} />
         <Route path="/reset-password" element={<ResetPasswordPage />} />
-        
+        <Route path="/help" element={<HelpCenterPage />} />
+        <Route path="/privacy" element={<PrivacyPolicyPage />} />
+        <Route path="/terms" element={<TermsOfServicePage />} />
+
         {/* Protected routes */}
         <Route path="/dashboard" element={<ProtectedRoute element={<DashboardPage />} />} />
         <Route path="/english" element={<ProtectedRoute element={<EnglishPage />} />} />
@@ -80,7 +67,7 @@ function App() {
         <Route path="/questions" element={<ProtectedRoute element={<QuestionsPage />} />} />
 
         <Route path="/profile" element={<ProtectedRoute element={<ProfilePage />} />} />
-        <Route path="/chale" element={<ProtectedRoute element={<ChalePage />} />} />
+        <Route path="/naano" element={<ProtectedRoute element={<NAANOPage />} />} />
         
         {/* 404 route */}
         <Route path="*" element={<NotFoundPage />} />

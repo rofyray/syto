@@ -34,7 +34,7 @@ export function QuestionsPage() {
     if (topicName && exerciseName && subject && profile) {
       const fetchQuestions = async () => {
         try {
-          const response = await fetch('/api/chale/generate-questions', {
+          const response = await fetch('/api/naano/generate-questions', {
             method: 'POST',
             headers: {
               'Content-Type': 'application/json',
@@ -104,7 +104,7 @@ export function QuestionsPage() {
       <AppLayout>
         <div className="flex justify-center items-center h-screen">
           <Loader2 className="h-12 w-12 animate-spin" />
-          <p className="ml-4 text-lg">Chale is preparing your questions...</p>
+          <p className="ml-4 text-lg">NAANO is preparing your questions...</p>
         </div>
       </AppLayout>
     );

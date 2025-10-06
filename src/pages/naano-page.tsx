@@ -5,17 +5,17 @@ import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { useAuthStore } from "@/stores/auth-store";
 
-// Use local Chale image from public folder
-import chaleImage from "/chale.png";
+// Use local NAANO image from public folder
+import naanoImage from "/naano.png";
 
 interface Message {
   id: string;
   content: string;
-  sender: "user" | "chale";
+  sender: "user" | "naano";
   timestamp: Date;
 }
 
-export function ChalePage() {
+export function NAANOPage() {
   const { profile } = useAuthStore();
   const [message, setMessage] = useState("");
   const [messages, setMessages] = useState<Message[]>([]);
@@ -28,8 +28,8 @@ export function ChalePage() {
     if (messages.length === 0) {
       const initialMessage: Message = {
         id: Date.now().toString(),
-        content: `Hello ${profile?.username || "there"}! I'm Chale, your learning assistant. How can I help you with your English or Mathematics lessons today?`,
-        sender: "chale",
+        content: `Hello ${profile?.username || "there"}! I'm NAANO, your learning assistant. How can I help you with your English or Mathematics lessons today?`,
+        sender: "naano",
         timestamp: new Date(),
       };
       setMessages([initialMessage]);
@@ -57,8 +57,8 @@ export function ChalePage() {
     setIsProcessing(true);
 
     try {
-      // Call new Claude-powered Chale API with streaming
-      const response = await fetch('/api/chale/chat', {
+      // Call new Claude-powered NAANO API with streaming
+      const response = await fetch('/api/naano/chat', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -74,8 +74,8 @@ export function ChalePage() {
 
       const reader = response.body.getReader();
       const decoder = new TextDecoder();
-      let chaleResponseText = '';
-      let chaleMessageId = Date.now().toString();
+      let naanoResponseText = '';
+      let naanoMessageId = Date.now().toString();
 
       while (true) {
         const { done, value } = await reader.read();
@@ -92,23 +92,23 @@ export function ChalePage() {
             try {
               const parsed = JSON.parse(data);
               if (parsed.chunk) {
-                chaleResponseText += parsed.chunk;
+                naanoResponseText += parsed.chunk;
 
                 // Update UI with streaming response
                 setMessages((prev) => {
                   const lastMessage = prev[prev.length - 1];
-                  if (lastMessage?.id === chaleMessageId && lastMessage?.sender === 'chale') {
+                  if (lastMessage?.id === naanoMessageId && lastMessage?.sender === 'naano') {
                     return [
                       ...prev.slice(0, -1),
-                      { ...lastMessage, content: chaleResponseText },
+                      { ...lastMessage, content: naanoResponseText },
                     ];
                   } else {
                     return [
                       ...prev,
                       {
-                        id: chaleMessageId,
-                        content: chaleResponseText,
-                        sender: 'chale',
+                        id: naanoMessageId,
+                        content: naanoResponseText,
+                        sender: 'naano',
                         timestamp: new Date(),
                       },
                     ];
@@ -125,8 +125,8 @@ export function ChalePage() {
       console.error('Error sending message:', error);
       const errorMessage: Message = {
         id: Date.now().toString(),
-        content: "Sorry chale, I'm having trouble responding right now. Please try again!",
-        sender: "chale",
+        content: "Sorry naano, I'm having trouble responding right now. Please try again!",
+        sender: "naano",
         timestamp: new Date(),
       };
       setMessages((prev) => [...prev, errorMessage]);
@@ -159,15 +159,27 @@ export function ChalePage() {
   return (
     <AppLayout>
       <div className="container mx-auto px-4 py-8">
-        <h1 className="text-3xl font-bold mb-2">Chat with Chale</h1>
-        <p className="text-muted-foreground mb-8">
-          Your AI learning assistant for English and Mathematics
-        </p>
-        
+        {/* Header Section */}
+        <div className="mb-8 bg-white/60 dark:bg-white/5 backdrop-blur-xl rounded-3xl p-6 border border-white/20 dark:border-white/10 shadow-glass-lg animate-slide-up">
+          <div className="flex items-center mb-2">
+            <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-ghana-gold/20 to-ghana-gold-dark/20 flex items-center justify-center mr-3">
+              <Bot className="h-6 w-6 text-ghana-gold-dark" />
+            </div>
+            <div className="flex-1">
+              <h1 className="text-4xl font-bold bg-gradient-to-r from-ghana-gold to-ghana-gold-dark bg-clip-text text-transparent">
+                Chat with NAANO
+              </h1>
+              <p className="text-muted-foreground">
+                Your AI learning assistant for English and Mathematics
+              </p>
+            </div>
+          </div>
+        </div>
+
         <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
           {/* Chat Interface */}
-          <div className="md:col-span-2">
-            <Card className="flex flex-col h-[600px] overflow-hidden">
+          <div className="md:col-span-2 animate-slide-up" style={{animationDelay: '0.1s'}}>
+            <div className="bg-white/60 dark:bg-white/5 backdrop-blur-xl rounded-3xl border border-white/20 dark:border-white/10 shadow-glass-lg flex flex-col h-[600px] overflow-hidden">
               {/* Messages Container */}
               <div className="flex-1 overflow-y-auto p-4 space-y-4">
                 {messages.map((msg) => (
@@ -183,27 +195,31 @@ export function ChalePage() {
                       }`}
                     >
                       <div
-                        className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-full ${
+                        className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-full overflow-hidden ${
                           msg.sender === "user"
                             ? "bg-ghana-green ml-2"
-                            : "bg-ghana-gold mr-2"
+                            : "bg-transparent mr-2 border-2 border-ghana-gold"
                         }`}
                       >
                         {msg.sender === "user" ? (
                           <User className="h-5 w-5 text-white" />
                         ) : (
-                          <Bot className="h-5 w-5 text-white" />
+                          <img
+                            src={naanoImage}
+                            alt="NAANO"
+                            className="h-full w-full object-cover"
+                          />
                         )}
                       </div>
                       <div
-                        className={`rounded-lg p-3 ${
+                        className={`rounded-2xl p-4 ${
                           msg.sender === "user"
                             ? "bg-ghana-green text-white"
-                            : "bg-muted"
+                            : "bg-white/40 dark:bg-white/10 backdrop-blur-sm border border-white/30 dark:border-white/20"
                         }`}
                       >
                         <p className="text-sm">{msg.content}</p>
-                        <p className="mt-1 text-xs opacity-70">
+                        <p className={`mt-1 text-xs ${msg.sender === "user" ? "opacity-70" : "text-muted-foreground"}`}>
                           {msg.timestamp.toLocaleTimeString([], {
                             hour: "2-digit",
                             minute: "2-digit",
@@ -217,10 +233,14 @@ export function ChalePage() {
                 {isProcessing && (
                   <div className="flex justify-start">
                     <div className="flex flex-row">
-                      <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-ghana-gold mr-2">
-                        <Bot className="h-5 w-5 text-white" />
+                      <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full overflow-hidden bg-transparent mr-2 border-2 border-ghana-gold">
+                        <img
+                          src={naanoImage}
+                          alt="NAANO"
+                          className="h-full w-full object-cover"
+                        />
                       </div>
-                      <div className="rounded-lg p-3 bg-muted">
+                      <div className="rounded-2xl p-4 bg-white/40 dark:bg-white/10 backdrop-blur-sm border border-white/30 dark:border-white/20">
                         <div className="flex space-x-1">
                           <div className="h-2 w-2 rounded-full bg-ghana-gold animate-pulse"></div>
                           <div className="h-2 w-2 rounded-full bg-ghana-gold animate-pulse delay-150"></div>
@@ -263,7 +283,7 @@ export function ChalePage() {
                   <Button
                     type="button"
                     size="icon"
-                    variant="ghana"
+                    className="bg-gradient-to-r from-ghana-gold to-ghana-gold-dark hover:from-ghana-gold-dark hover:to-ghana-gold text-white rounded-xl shadow-lg hover:shadow-xl transition-all"
                     onClick={handleSendMessage}
                     disabled={!message.trim() || isProcessing}
                   >
@@ -279,27 +299,27 @@ export function ChalePage() {
                   </div>
                 )}
               </div>
-            </Card>
+            </div>
           </div>
-          
-          {/* Chale Profile */}
-          <div className="md:col-span-1">
-            <Card className="p-6">
+
+          {/* NAANO Profile */}
+          <div className="md:col-span-1 animate-slide-up" style={{animationDelay: '0.2s'}}>
+            <div className="bg-white/60 dark:bg-white/5 backdrop-blur-xl rounded-3xl p-6 border border-white/20 dark:border-white/10 shadow-glass-lg">
               <div className="flex flex-col items-center">
                 <div className="mb-4 h-32 w-32 overflow-hidden rounded-full border-4 border-ghana-gold">
                   <img
-                    src={chaleImage}
-                    alt="Chale AI Assistant"
+                    src={naanoImage}
+                    alt="NAANO AI Assistant"
                     className="h-full w-full object-cover"
                   />
                 </div>
-                <h2 className="text-xl font-bold">Chale</h2>
+                <h2 className="text-xl font-bold">NAANO</h2>
                 <p className="text-center text-muted-foreground mb-4">
                   Your AI Learning Assistant
                 </p>
                 
                 <div className="w-full space-y-2 mt-4">
-                  <h3 className="text-lg font-semibold">How Chale Can Help</h3>
+                  <h3 className="text-lg font-semibold">How NAANO Can Help</h3>
                   <ul className="space-y-2">
                     <li className="flex items-start">
                       <span className="mr-2 text-ghana-green">✓</span>
@@ -324,15 +344,13 @@ export function ChalePage() {
                   <h3 className="text-lg font-semibold mb-2">Try asking:</h3>
                   <div className="space-y-2">
                     <Button
-                      variant="outline"
-                      className="w-full justify-start text-left"
+                      className="w-full justify-start text-left bg-ghana-gold/10 hover:bg-ghana-gold/20 text-ghana-gold-dark border-2 border-ghana-gold/30 hover:border-ghana-gold/50 rounded-xl shadow-sm hover:shadow-md transition-all"
                       onClick={() => setMessage("Can you explain fractions to me?")}
                     >
                       Can you explain fractions to me?
                     </Button>
                     <Button
-                      variant="outline"
-                      className="w-full justify-start text-left"
+                      className="w-full justify-start text-left bg-ghana-gold/10 hover:bg-ghana-gold/20 text-ghana-gold-dark border-2 border-ghana-gold/30 hover:border-ghana-gold/50 rounded-xl shadow-sm hover:shadow-md transition-all"
                       onClick={() =>
                         setMessage("What are adjectives and how do I use them?")
                       }
@@ -340,8 +358,7 @@ export function ChalePage() {
                       What are adjectives and how do I use them?
                     </Button>
                     <Button
-                      variant="outline"
-                      className="w-full justify-start text-left"
+                      className="w-full justify-start text-left bg-ghana-gold/10 hover:bg-ghana-gold/20 text-ghana-gold-dark border-2 border-ghana-gold/30 hover:border-ghana-gold/50 rounded-xl shadow-sm hover:shadow-md transition-all"
                       onClick={() =>
                         setMessage("Help me solve this word problem about market prices.")
                       }
@@ -351,7 +368,7 @@ export function ChalePage() {
                   </div>
                 </div>
               </div>
-            </Card>
+            </div>
           </div>
         </div>
       </div>

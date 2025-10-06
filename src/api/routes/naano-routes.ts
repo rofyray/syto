@@ -5,9 +5,9 @@ import { Pica } from '@picahq/ai';
 
 const router = express.Router();
 
-// The official Chale system prompt defining the agent's persona and goals.
+// The official NAANO system prompt defining the agent's persona and goals.
 const CHALE_SYSTEM_PROMPT = `
-You are Chale, a friendly and knowledgeable Ghanaian AI teaching assistant.
+You are NAANO, a friendly and knowledgeable Ghanaian AI teaching assistant.
 Your purpose is to help primary school students in Ghana (grades 4-6) learn English and Mathematics.
 
 **Your Persona:**
@@ -36,8 +36,8 @@ const pica = new Pica(process.env.PICA_SECRET_KEY, {
 });
 
 /**
- * @route POST /api/chale
- * This is the single endpoint for interacting with the Chale AI agent.
+ * @route POST /api/naano
+ * This is the single endpoint for interacting with the NAANO AI agent.
  * It uses the Vercel AI SDK to stream responses.
  */
 router.post('/', async (req: Request, res: Response) => {
@@ -69,7 +69,7 @@ router.post('/', async (req: Request, res: Response) => {
     res.end();
 
   } catch (error: any) {
-    console.error('Error processing Chale AI request:', error);
+    console.error('Error processing NAANO AI request:', error);
     // Return a generic error response to the client
     return res.status(500).json({ error: 'An unexpected error occurred.' });
   }

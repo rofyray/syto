@@ -1,9 +1,9 @@
-import { ChaleContentResponse } from './chale-config.js';
+import { NAANOContentResponse } from './naano-config.js';
 import { v4 as uuidv4 } from 'uuid';
 
 /**
  * Syto App Data Model Formatters
- * Converts Chale-generated content to match Syto's database schema
+ * Converts NAANO-generated content to match Syto's database schema
  */
 
 /**
@@ -85,167 +85,167 @@ export interface SytoQuestion {
 }
 
 /**
- * Convert Chale module content to Syto module format
+ * Convert NAANO module content to Syto module format
  */
-export function formatModuleForSyto(chaleContent: ChaleContentResponse): SytoModule {
-  if (chaleContent.type !== 'module') {
+export function formatModuleForSyto(naanoContent: NAANOContentResponse): SytoModule {
+  if (naanoContent.type !== 'module') {
     throw new Error('Content type must be "module" for module formatting');
   }
 
   const now = new Date().toISOString();
 
   return {
-    id: chaleContent.id,
-    title: chaleContent.title,
-    description: chaleContent.description,
-    subject: chaleContent.subject,
-    grade: chaleContent.grade,
-    difficulty: chaleContent.metadata.difficulty,
-    estimatedDuration: chaleContent.metadata.estimatedDuration,
-    learningObjectives: chaleContent.metadata.learningObjectives,
-    prerequisites: chaleContent.metadata.prerequisites,
-    culturalContext: chaleContent.metadata.culturalContext,
+    id: naanoContent.id,
+    title: naanoContent.title,
+    description: naanoContent.description,
+    subject: naanoContent.subject,
+    grade: naanoContent.grade,
+    difficulty: naanoContent.metadata.difficulty,
+    estimatedDuration: naanoContent.metadata.estimatedDuration,
+    learningObjectives: naanoContent.metadata.learningObjectives,
+    prerequisites: naanoContent.metadata.prerequisites,
+    culturalContext: naanoContent.metadata.culturalContext,
     createdAt: now,
     updatedAt: now,
     isActive: true,
     metadata: {
-      ...chaleContent.content,
-      ghanaianContext: chaleContent.metadata.ghanaianContext,
-      generatedBy: 'chale-ai',
+      ...naanoContent.content,
+      ghanaianContext: naanoContent.metadata.ghanaianContext,
+      generatedBy: 'naano-ai',
       version: '1.0'
     }
   };
 }
 
 /**
- * Convert Chale topic content to Syto topic format
+ * Convert NAANO topic content to Syto topic format
  */
 export function formatTopicForSyto(
-  chaleContent: ChaleContentResponse, 
+  naanoContent: NAANOContentResponse, 
   moduleId: string, 
   order: number = 1
 ): SytoTopic {
-  if (chaleContent.type !== 'topic') {
+  if (naanoContent.type !== 'topic') {
     throw new Error('Content type must be "topic" for topic formatting');
   }
 
   const now = new Date().toISOString();
 
   return {
-    id: chaleContent.id,
+    id: naanoContent.id,
     moduleId,
-    title: chaleContent.title,
-    description: chaleContent.description,
-    subject: chaleContent.subject,
-    grade: chaleContent.grade,
-    difficulty: chaleContent.metadata.difficulty,
+    title: naanoContent.title,
+    description: naanoContent.description,
+    subject: naanoContent.subject,
+    grade: naanoContent.grade,
+    difficulty: naanoContent.metadata.difficulty,
     order,
-    learningObjectives: chaleContent.metadata.learningObjectives,
-    content: chaleContent.content,
-    estimatedDuration: chaleContent.metadata.estimatedDuration,
+    learningObjectives: naanoContent.metadata.learningObjectives,
+    content: naanoContent.content,
+    estimatedDuration: naanoContent.metadata.estimatedDuration,
     createdAt: now,
     updatedAt: now,
     isActive: true,
     metadata: {
-      culturalContext: chaleContent.metadata.culturalContext,
-      prerequisites: chaleContent.metadata.prerequisites,
-      ghanaianContext: chaleContent.metadata.ghanaianContext,
-      generatedBy: 'chale-ai',
+      culturalContext: naanoContent.metadata.culturalContext,
+      prerequisites: naanoContent.metadata.prerequisites,
+      ghanaianContext: naanoContent.metadata.ghanaianContext,
+      generatedBy: 'naano-ai',
       version: '1.0'
     }
   };
 }
 
 /**
- * Convert Chale exercise content to Syto exercise format
+ * Convert NAANO exercise content to Syto exercise format
  */
 export function formatExerciseForSyto(
-  chaleContent: ChaleContentResponse, 
+  naanoContent: NAANOContentResponse, 
   topicId: string, 
   order: number = 1
 ): SytoExercise {
-  if (chaleContent.type !== 'exercise') {
+  if (naanoContent.type !== 'exercise') {
     throw new Error('Content type must be "exercise" for exercise formatting');
   }
 
   const now = new Date().toISOString();
 
   // Extract instructions from content
-  const instructions = chaleContent.content.instructions || chaleContent.description;
-  const assessmentCriteria = chaleContent.content.assessmentCriteria || chaleContent.metadata.learningObjectives;
+  const instructions = naanoContent.content.instructions || naanoContent.description;
+  const assessmentCriteria = naanoContent.content.assessmentCriteria || naanoContent.metadata.learningObjectives;
 
   return {
-    id: chaleContent.id,
+    id: naanoContent.id,
     topicId,
-    title: chaleContent.title,
-    description: chaleContent.description,
-    subject: chaleContent.subject,
-    grade: chaleContent.grade,
-    difficulty: chaleContent.metadata.difficulty,
+    title: naanoContent.title,
+    description: naanoContent.description,
+    subject: naanoContent.subject,
+    grade: naanoContent.grade,
+    difficulty: naanoContent.metadata.difficulty,
     order,
     instructions,
-    content: chaleContent.content,
+    content: naanoContent.content,
     assessmentCriteria,
-    estimatedDuration: chaleContent.metadata.estimatedDuration,
+    estimatedDuration: naanoContent.metadata.estimatedDuration,
     createdAt: now,
     updatedAt: now,
     isActive: true,
     metadata: {
-      culturalContext: chaleContent.metadata.culturalContext,
-      prerequisites: chaleContent.metadata.prerequisites,
-      learningObjectives: chaleContent.metadata.learningObjectives,
-      ghanaianContext: chaleContent.metadata.ghanaianContext,
-      generatedBy: 'chale-ai',
+      culturalContext: naanoContent.metadata.culturalContext,
+      prerequisites: naanoContent.metadata.prerequisites,
+      learningObjectives: naanoContent.metadata.learningObjectives,
+      ghanaianContext: naanoContent.metadata.ghanaianContext,
+      generatedBy: 'naano-ai',
       version: '1.0'
     }
   };
 }
 
 /**
- * Convert Chale question content to Syto question format
+ * Convert NAANO question content to Syto question format
  */
 export function formatQuestionForSyto(
-  chaleContent: ChaleContentResponse, 
+  naanoContent: NAANOContentResponse, 
   exerciseId: string, 
   order: number = 1
 ): SytoQuestion {
-  if (chaleContent.type !== 'question') {
+  if (naanoContent.type !== 'question') {
     throw new Error('Content type must be "question" for question formatting');
   }
 
   const now = new Date().toISOString();
 
   // Extract question details from content
-  const questionText = chaleContent.content.questionText || chaleContent.title;
-  const questionType = chaleContent.content.questionType || 'multiple_choice';
-  const options = chaleContent.content.options || [];
-  const correctAnswer = chaleContent.content.correctAnswer || chaleContent.content.answer;
-  const explanation = chaleContent.content.explanation || '';
-  const points = chaleContent.content.points || getDefaultPoints(chaleContent.metadata.difficulty);
+  const questionText = naanoContent.content.questionText || naanoContent.title;
+  const questionType = naanoContent.content.questionType || 'multiple_choice';
+  const options = naanoContent.content.options || [];
+  const correctAnswer = naanoContent.content.correctAnswer || naanoContent.content.answer;
+  const explanation = naanoContent.content.explanation || '';
+  const points = naanoContent.content.points || getDefaultPoints(naanoContent.metadata.difficulty);
 
   return {
-    id: chaleContent.id,
+    id: naanoContent.id,
     exerciseId,
-    title: chaleContent.title,
+    title: naanoContent.title,
     questionText,
     questionType,
-    subject: chaleContent.subject,
-    grade: chaleContent.grade,
-    difficulty: chaleContent.metadata.difficulty,
+    subject: naanoContent.subject,
+    grade: naanoContent.grade,
+    difficulty: naanoContent.metadata.difficulty,
     order,
     options: options.length > 0 ? options : undefined,
     correctAnswer,
     explanation,
     points,
-    estimatedDuration: chaleContent.metadata.estimatedDuration,
+    estimatedDuration: naanoContent.metadata.estimatedDuration,
     createdAt: now,
     updatedAt: now,
     isActive: true,
     metadata: {
-      culturalContext: chaleContent.metadata.culturalContext,
-      learningObjectives: chaleContent.metadata.learningObjectives,
-      ghanaianContext: chaleContent.metadata.ghanaianContext,
-      generatedBy: 'chale-ai',
+      culturalContext: naanoContent.metadata.culturalContext,
+      learningObjectives: naanoContent.metadata.learningObjectives,
+      ghanaianContext: naanoContent.metadata.ghanaianContext,
+      generatedBy: 'naano-ai',
       version: '1.0'
     }
   };
@@ -274,10 +274,10 @@ export interface SytoLearningPath {
 }
 
 export function formatLearningPathForSyto(learningPath: {
-  module: ChaleContentResponse;
-  topics: ChaleContentResponse[];
-  exercises: ChaleContentResponse[];
-  questions: ChaleContentResponse[];
+  module: NAANOContentResponse;
+  topics: NAANOContentResponse[];
+  exercises: NAANOContentResponse[];
+  questions: NAANOContentResponse[];
 }): SytoLearningPath {
   // Format module
   const sytoModule = formatModuleForSyto(learningPath.module);
@@ -348,7 +348,7 @@ export function validateSytoContent(content: any, type: 'module' | 'topic' | 'ex
  * Batch format multiple content items
  */
 export function batchFormatForSyto(
-  chaleContents: ChaleContentResponse[],
+  naanoContents: NAANOContentResponse[],
   parentIds: { [key: string]: string } = {}
 ): {
   modules: SytoModule[];
@@ -365,7 +365,7 @@ export function batchFormatForSyto(
   let exerciseOrder = 1;
   let questionOrder = 1;
 
-  for (const content of chaleContents) {
+  for (const content of naanoContents) {
     try {
       switch (content.type) {
         case 'module':

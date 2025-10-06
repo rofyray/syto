@@ -6,11 +6,11 @@ import { errorHandler } from './middleware/error-handler.js';
 import { optionalAuth, logUserActivity } from './middleware/auth-middleware.js';
 import { cacheMiddleware, smartCache, getCacheStats, warmCache } from './middleware/cache.js';
 import { sanitizeInput } from './middleware/validation.js';
-// import chaleRoutes from './routes/chale-routes.js'; // OLD: Pica-based routes
-import chaleRoutes from './routes/chale-routes-new.js'; // NEW: Claude SDK routes
+// import naanoRoutes from './routes/naano-routes.js'; // OLD: Pica-based routes
+import naanoRoutes from './routes/naano-routes-new.js'; // NEW: Claude SDK routes
 
 /**
- * Chale AI API Server
+ * NAANO AI API Server
  * Express server providing educational content generation endpoints
  */
 
@@ -51,7 +51,7 @@ app.use((req: Request, _res: Response, next: NextFunction): void => {
 app.get('/health', cacheMiddleware(5 * 60 * 1000), (_req: Request, res: Response, _next: NextFunction) => {
   res.json({
     status: 'healthy',
-    service: 'chale-api-server',
+    service: 'naano-api-server',
     timestamp: new Date().toISOString(),
     version: '1.0.0',
     environment: process.env.NODE_ENV || 'development'
@@ -63,11 +63,11 @@ app.get('/health', cacheMiddleware(5 * 60 * 1000), (_req: Request, res: Response
 app.get('/cache-stats', getCacheStats);
 
 // API routes with authentication and activity logging
-app.use('/api/chale', 
+app.use('/api/naano', 
   optionalAuth,           // Optional authentication
   logUserActivity,        // Log user activity
   smartCache,            // Smart caching based on content type
-  chaleRoutes            // Main Chale routes
+  naanoRoutes            // Main NAANO routes
 );
 
 
@@ -76,7 +76,7 @@ app.use('/api/chale',
 app.use('*', (req: Request, res: Response, _next: NextFunction) => {
   res.status(404).json({
     error: 'Endpoint not found',
-    message: `The requested endpoint ${req.method} ${req.originalUrl} does not exist. The primary endpoint is POST /api/chale.`
+    message: `The requested endpoint ${req.method} ${req.originalUrl} does not exist. The primary endpoint is POST /api/naano.`
   });
   return;
 });
@@ -102,12 +102,12 @@ const startServer = async () => {
     await warmCache();
     
     app.listen(PORT, () => {
-      console.log(`🚀 Chale AI API Server running on port ${PORT}`);
+      console.log(`🚀 NAANO AI API Server running on port ${PORT}`);
       console.log(`📚 Educational content generation ready`);
       console.log(`🌍 CORS enabled for: ${corsOptions.origin.join(', ')}`);
       console.log(`📊 Health check: http://localhost:${PORT}/health`);
       console.log(`📈 Cache stats: http://localhost:${PORT}/cache-stats`);
-      console.log(`🎓 Chale API: http://localhost:${PORT}/api/chale/*`);
+      console.log(`🎓 NAANO API: http://localhost:${PORT}/api/naano/*`);
     });
   } catch (error) {
     console.error('Failed to start server:', error);

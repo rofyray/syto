@@ -70,14 +70,14 @@ const fetchOrCreateProfile = async (userId: string, userEmail: string) => {
 export const useAuthStore = create<AuthState>((set, get) => ({
   user: null,
   profile: null,
-  loading: true,
+  loading: false,
   error: null,
-  initialized: false,
-  
+  initialized: true, // Start as initialized to avoid blocking UI
+
   initialize: async () => {
     try {
       console.log('AUTH STORE: Beginning initialization');
-      set({ loading: true, error: null });
+      set({ error: null });
       
       // Get current session first
       console.log('AUTH STORE: Fetching session');
@@ -85,7 +85,7 @@ export const useAuthStore = create<AuthState>((set, get) => ({
       
       if (sessionError) {
         console.error('AUTH STORE: Error getting session:', sessionError);
-        set({ error: sessionError.message, loading: false, initialized: true });
+        set({ error: sessionError.message });
         return;
       }
       
@@ -102,13 +102,11 @@ export const useAuthStore = create<AuthState>((set, get) => ({
         console.log('AUTH STORE: No existing session found, proceeding as guest');
         set({ user: null, profile: null });
       }
-      
-      console.log('AUTH STORE: Setting initialized=true and loading=false');
-      set({ loading: false, initialized: true });
+
+      console.log('AUTH STORE: Initialization complete');
     } catch (error: any) {
       console.error('AUTH STORE: Error initializing auth:', error);
-      // Force initialization to complete even on error
-      set({ error: error.message, loading: false, initialized: true });
+      set({ error: error.message });
     }
     
     // Set up auth state change listener AFTER initial session check
@@ -117,24 +115,20 @@ export const useAuthStore = create<AuthState>((set, get) => ({
       
       const user = session?.user || null;
       
-      // Only set loading to true if we're transitioning between auth states
-      if (event === 'SIGNED_IN' || event === 'SIGNED_OUT') {
-        set({ user, loading: true });
-      } else {
-        set({ user });
-      }
+      // Update user state without blocking
+      set({ user });
       
       if (user) {
         // Fetch or create user profile
         try {
           const profile = await fetchOrCreateProfile(user.id, user.email || '');
-          set({ profile, loading: false });
+          set({ profile });
         } catch (error) {
           console.error('Error fetching profile after auth change:', error);
-          set({ profile: null, loading: false });
+          set({ profile: null });
         }
       } else {
-        set({ profile: null, loading: false });
+        set({ profile: null });
       }
     });
     

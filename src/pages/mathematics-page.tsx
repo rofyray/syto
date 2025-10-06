@@ -1,7 +1,6 @@
 import { useState, useEffect } from "react";
-import { Calculator, Star, X } from "lucide-react";
+import { BookText, Calculator, MessageSquare, X } from "lucide-react";
 import { AppLayout } from "@/components/layout/app-layout";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Progress } from "@/components/ui/progress";
 import { Button } from "@/components/ui/button";
 import { useNavigate } from "react-router-dom";
@@ -64,62 +63,67 @@ export function MathematicsPage() {
   return (
     <AppLayout>
       <div className="container mx-auto px-4 py-8">
-        <div className="flex flex-col md:flex-row md:items-center md:justify-between mb-8">
-          <div>
-            <h1 className="text-3xl font-bold mb-2 flex items-center">
-              <Calculator className="mr-2 h-8 w-8 text-ghana-gold dark:text-ghana-gold-dark" />
-              Mathematics
-            </h1>
-            <p className="text-muted-foreground">
-              Primary {profile?.grade_level || 4} Mathematics modules aligned with the Ghanaian curriculum
-            </p>
+        {/* Header Section */}
+        <div className="mb-8 bg-white/60 dark:bg-white/5 backdrop-blur-xl rounded-3xl p-6 border border-white/20 dark:border-white/10 shadow-glass-lg animate-slide-up">
+          <div className="flex items-center mb-2">
+            <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-ghana-gold/20 to-ghana-gold-dark/20 flex items-center justify-center mr-3">
+              <Calculator className="h-6 w-6 text-ghana-gold-dark" />
+            </div>
+            <div className="flex-1">
+              <h1 className="text-4xl font-bold bg-gradient-to-r from-ghana-gold to-ghana-gold-dark bg-clip-text text-transparent">
+                Mathematics
+              </h1>
+              <p className="text-muted-foreground">
+                Primary {profile?.grade_level || 4} Mathematics modules aligned with the Ghanaian curriculum
+              </p>
+            </div>
           </div>
-          
-          <div className="mt-4 md:mt-0 flex items-center space-x-2">
+
+          <div className="flex flex-wrap gap-3 mt-4">
             <Button
-              variant="outline"
-              onClick={() => navigate("/chale")}
-              className="flex items-center"
-            >
-              <Star className="mr-2 h-4 w-4 text-ghana-gold" />
-              Ask Chale for Help
-            </Button>
-            <Button
-              variant="outline"
-              size="sm"
-              className="border-2 border-ghana-green text-ghana-green hover:bg-ghana-green hover:text-white transition-colors"
+              className="h-11 px-6 bg-ghana-gold-dark hover:bg-ghana-gold text-white rounded-xl shadow-lg hover:shadow-xl transition-all"
               onClick={() => setIsSelectionModalOpen(true)}
             >
               + Start a New Module
+            </Button>
+            <Button
+              className="h-11 px-6 bg-ghana-gold/20 hover:bg-ghana-gold/40 text-ghana-gold-dark dark:text-ghana-gold border-2 border-ghana-gold/30 hover:border-ghana-gold rounded-xl shadow-md hover:shadow-lg transition-all"
+              onClick={() => navigate("/naano")}
+            >
+              <MessageSquare className="mr-2 h-4 w-4" />
+              Ask NAANO for Help
             </Button>
           </div>
         </div>
 
         {/* Overall Progress */}
-        <Card className="mb-8">
-          <CardHeader className="pb-2">
-            <CardTitle>Your Progress</CardTitle>
-            <CardDescription>
-              Overall completion of Mathematics modules
-            </CardDescription>
-          </CardHeader>
-          <CardContent>
-            <div className="space-y-2">
-              <div className="flex items-center justify-between">
-                <span className="text-sm font-medium">{overallProgress}% Complete</span>
-              </div>
-              <Progress value={overallProgress} variant="warning" />
+        <div className="mb-8 bg-white/60 dark:bg-white/5 backdrop-blur-xl rounded-3xl p-6 border border-white/20 dark:border-white/10 shadow-glass-lg hover:shadow-glass-xl transition-all animate-slide-up" style={{animationDelay: '0.1s'}}>
+          <div className="flex items-center mb-4">
+            <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-ghana-gold/20 to-ghana-gold-dark/20 flex items-center justify-center mr-3">
+              <Calculator className="h-5 w-5 text-ghana-gold-dark" />
             </div>
-          </CardContent>
-        </Card>
+            <div>
+              <h3 className="text-xl font-bold">Your Progress</h3>
+              <p className="text-sm text-muted-foreground">Overall completion of Mathematics modules</p>
+            </div>
+          </div>
+          <div className="space-y-3">
+            <div className="bg-ghana-gold/10 dark:bg-ghana-gold/20 border-2 border-ghana-gold/30 rounded-xl p-4 flex items-center justify-between">
+              <span className="text-xs font-bold uppercase tracking-wide text-ghana-gold-dark">Overall Completion</span>
+              <span className="text-2xl font-bold text-ghana-gold-dark">{overallProgress}%</span>
+            </div>
+            <Progress value={overallProgress} variant="ghana" className="h-3" />
+          </div>
+        </div>
 
         {/* Modules Grid */}
         <div className="grid gap-6 md:grid-cols-2">
           {modules.filter((module) => module.progress > 0).length > 0 ? (
-            modules.filter((module) => module.progress > 0).map((module) => (
-              <Card 
+            modules.filter((module) => module.progress > 0).map((module, index) => (
+              <div
                 key={module.id}
-                className="overflow-hidden hover:shadow-md transition-all"
+                className="bg-white/60 dark:bg-white/5 backdrop-blur-xl rounded-3xl border border-white/20 dark:border-white/10 shadow-glass hover:shadow-glass-xl transition-all overflow-hidden animate-slide-up"
+                style={{animationDelay: `${(index + 2) * 0.1}s`}}
               >
                 <div className="aspect-video relative overflow-hidden">
                   <img
@@ -127,32 +131,45 @@ export function MathematicsPage() {
                     alt={module.title}
                     className="w-full h-full object-cover transition-transform hover:scale-105"
                   />
-                  <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/70 to-transparent p-4">
-                    <h2 className="text-white text-xl font-bold">{module.title}</h2>
+                  <div className="absolute inset-0 bg-gradient-to-t from-black/70 via-black/20 to-transparent"></div>
+                  <div className="absolute bottom-0 left-0 right-0 p-6">
+                    <div className="flex items-center mb-2">
+                      <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-ghana-gold/80 to-ghana-gold-dark/80 backdrop-blur-sm flex items-center justify-center mr-2">
+                        <Calculator className="h-4 w-4 text-white" />
+                      </div>
+                      <h2 className="text-white text-xl font-bold">{module.title}</h2>
+                    </div>
                   </div>
                 </div>
-                <CardContent className="p-6">
-                  <p className="mb-4">{module.description}</p>
-
-                  <div className="space-y-2">
-                    <div className="flex items-center justify-between">
-                      <span className="text-sm font-medium">{module.progress}% Complete</span>
+                <div className="p-6">
+                  <p className="mb-4 text-muted-foreground">{module.description}</p>
+                  <div className="space-y-2 mb-4">
+                    <div className="bg-ghana-gold/10 dark:bg-ghana-gold/20 border-2 border-ghana-gold/30 rounded-lg p-3 flex items-center justify-between">
+                      <span className="text-xs font-bold uppercase tracking-wide text-ghana-gold-dark">Progress</span>
+                      <span className="text-xl font-bold text-ghana-gold-dark">{module.progress}%</span>
                     </div>
-                    <Progress value={module.progress} variant="warning" />
+                    <Progress value={module.progress} variant="ghana" className="h-2" />
                   </div>
-                </CardContent>
-              </Card>
+                  <Button
+                    className="w-full h-12 bg-gradient-to-r from-ghana-gold to-ghana-gold-dark hover:from-ghana-gold-dark hover:to-ghana-gold text-white rounded-xl shadow-lg hover:shadow-xl transition-all"
+                    onClick={() => navigate(`/mathematics/${module.id}`)}
+                  >
+                    <BookText className="mr-2 h-5 w-5" />
+                    Continue Learning
+                  </Button>
+                </div>
+              </div>
             ))
           ) : (
-            <div className="col-span-2 bg-card rounded-lg shadow-md p-8 text-center theme-transition">
+            <div className="col-span-2 bg-white/60 dark:bg-white/5 backdrop-blur-xl rounded-3xl p-8 border border-white/20 dark:border-white/10 shadow-glass-lg text-center animate-slide-up" style={{animationDelay: '0.2s'}}>
               <h2 className="text-2xl font-bold mb-4">Start Your Learning Journey</h2>
               <p className="text-muted-foreground mb-6">Select a module to begin learning Mathematics.</p>
               <Button
-                variant="ghana"
                 size="lg"
-                className="bg-ghana-gold hover:bg-ghana-gold-dark"
+                className="h-14 px-8 bg-gradient-to-r from-ghana-gold to-ghana-gold-dark hover:from-ghana-gold-dark hover:to-ghana-gold text-white rounded-xl shadow-lg hover:shadow-xl transition-all"
                 onClick={() => setIsSelectionModalOpen(true)}
               >
+                <Calculator className="mr-2 h-5 w-5" />
                 Choose a Module
               </Button>
             </div>
@@ -161,12 +178,12 @@ export function MathematicsPage() {
       </div>
 
       {isSelectionModalOpen && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 z-50 flex justify-center items-center animate-fade-in">
-          <div className="bg-background p-8 rounded-lg shadow-xl w-full max-w-4xl relative animate-slide-in-up">
+        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex justify-center items-center animate-fade-in">
+          <div className="bg-white/60 dark:bg-white/5 backdrop-blur-xl rounded-3xl p-8 border border-white/20 dark:border-white/10 shadow-glass-xl w-full max-w-4xl mx-4 relative animate-scale-in">
             <Button
               variant="ghost"
               size="icon"
-              className="absolute top-4 right-4"
+              className="absolute top-4 right-4 hover:bg-white/20 dark:hover:bg-white/10 rounded-xl"
               onClick={() => setIsSelectionModalOpen(false)}
             >
               <X className="h-6 w-6" />

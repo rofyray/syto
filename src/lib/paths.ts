@@ -5,6 +5,6 @@ export const paths = {
   dashboard: '/dashboard',
   english: '/english',
   mathematics: '/mathematics',
-  chale: '/chale',
+  naano: '/naano',
   profile: '/profile',
 };

@@ -1,17 +1,17 @@
 import express, { Request, Response } from 'express';
-import { getChaleAgent } from '../../lib/chale';
-import { ChaleRequestSchema } from '../../lib/chale/types';
+import { getNAANOAgent } from '../../lib/naano';
+import { NAANORequestSchema } from '../../lib/naano/types';
 import { z } from 'zod';
 
 const router = express.Router();
 
 /**
- * POST /api/chale/chat
- * Chat with Chale AI (streaming)
+ * POST /api/naano/chat
+ * Chat with NAANO AI (streaming)
  */
 router.post('/chat', async (req: Request, res: Response) => {
   try {
-    const request = ChaleRequestSchema.parse({
+    const request = NAANORequestSchema.parse({
       type: 'chat',
       subject: req.body.subject || 'mathematics',
       grade: req.body.grade || 5,
@@ -19,7 +19,7 @@ router.post('/chat', async (req: Request, res: Response) => {
       context: req.body.context,
     });
 
-    const chale = getChaleAgent();
+    const naano = getNAANOAgent();
 
     // Set up Server-Sent Events for streaming
     res.setHeader('Content-Type', 'text/event-stream');
@@ -29,7 +29,7 @@ router.post('/chat', async (req: Request, res: Response) => {
 
     let fullResponse = '';
 
-    for await (const chunk of chale.processRequestStream(request)) {
+    for await (const chunk of naano.processRequestStream(request)) {
       fullResponse += chunk;
       res.write(`data: ${JSON.stringify({ chunk, fullResponse })}\n\n`);
     }
@@ -55,7 +55,7 @@ router.post('/chat', async (req: Request, res: Response) => {
 });
 
 /**
- * POST /api/chale/generate-questions
+ * POST /api/naano/generate-questions
  * Generate curriculum-aligned questions
  */
 router.post('/generate-questions', async (req: Request, res: Response) => {
@@ -69,7 +69,7 @@ router.post('/generate-questions', async (req: Request, res: Response) => {
       return;
     }
 
-    const request = ChaleRequestSchema.parse({
+    const request = NAANORequestSchema.parse({
       type: 'generate_questions',
       subject,
       grade: parseInt(grade),
@@ -97,8 +97,8 @@ IMPORTANT:
       context: { topic, difficulty },
     });
 
-    const chale = getChaleAgent();
-    const response = await chale.processRequest(request);
+    const naano = getNAANOAgent();
+    const response = await naano.processRequest(request);
 
     // Try to parse questions from response
     let questions;
@@ -143,7 +143,7 @@ IMPORTANT:
 });
 
 /**
- * POST /api/chale/explain
+ * POST /api/naano/explain
  * Get explanation for a concept
  */
 router.post('/explain', async (req: Request, res: Response) => {
@@ -157,15 +157,15 @@ router.post('/explain', async (req: Request, res: Response) => {
       return;
     }
 
-    const request = ChaleRequestSchema.parse({
+    const request = NAANORequestSchema.parse({
       type: 'explain_concept',
       subject,
       grade: parseInt(grade),
       content: `Explain the concept of "${concept}" in a way that a grade ${grade} student can understand. Use Ghanaian examples and context to make it relatable.`,
     });
 
-    const chale = getChaleAgent();
-    const response = await chale.processRequest(request);
+    const naano = getNAANOAgent();
+    const response = await naano.processRequest(request);
 
     res.json({
       success: true,
@@ -190,7 +190,7 @@ router.post('/explain', async (req: Request, res: Response) => {
 });
 
 /**
- * POST /api/chale/validate-answer
+ * POST /api/naano/validate-answer
  * Validate student answer with explanation
  */
 router.post('/validate-answer', async (req: Request, res: Response) => {
@@ -204,7 +204,7 @@ router.post('/validate-answer', async (req: Request, res: Response) => {
       return;
     }
 
-    const request = ChaleRequestSchema.parse({
+    const request = NAANORequestSchema.parse({
       type: 'validate_answer',
       subject,
       grade: parseInt(grade),
@@ -216,8 +216,8 @@ Correct Answer: ${correctAnswer}
 Please provide encouraging feedback on the student's answer. If incorrect, explain why and help them understand the correct answer in a supportive way.`,
     });
 
-    const chale = getChaleAgent();
-    const response = await chale.processRequest(request);
+    const naano = getNAANOAgent();
+    const response = await naano.processRequest(request);
 
     res.json({
       success: true,
@@ -242,13 +242,13 @@ Please provide encouraging feedback on the student's answer. If incorrect, expla
 });
 
 /**
- * POST /api/chale/reset
+ * POST /api/naano/reset
  * Reset conversation history
  */
 router.post('/reset', (req: Request, res: Response) => {
   try {
-    const chale = getChaleAgent();
-    chale.resetConversation();
+    const naano = getNAANOAgent();
+    naano.resetConversation();
 
     res.json({
       success: true,

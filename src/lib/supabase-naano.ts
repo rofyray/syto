@@ -1,16 +1,16 @@
 /**
- * Supabase Database Service for Chale AI Integration
+ * Supabase Database Service for NAANO AI Integration
  * Handles all database operations for student-specific content and progress tracking
  */
 
 import { supabase } from './supabase.js';
 import type { 
-  ChaleContentRequest, 
-  ChaleModuleResponse, 
-  ChaleTopicResponse, 
-  ChaleExerciseResponse, 
-  ChaleQuestionResponse 
-} from '../types/chale.js';
+  NAANOContentRequest, 
+  NAANOModuleResponse, 
+  NAANOTopicResponse, 
+  NAANOExerciseResponse, 
+  NAANOQuestionResponse 
+} from '../types/naano.js';
 
 // ============================================================================
 // TYPE DEFINITIONS
@@ -28,7 +28,7 @@ export interface StudentModule {
   curriculum_alignment?: string;
   generated_by: string;
   generation_prompt?: string;
-  chale_response?: any;
+  naano_response?: any;
   syto_formatted?: any;
   created_at: string;
   updated_at: string;
@@ -47,7 +47,7 @@ export interface StudentTopic {
   curriculum_alignment?: string;
   generated_by: string;
   generation_prompt?: string;
-  chale_response?: any;
+  naano_response?: any;
   syto_formatted?: any;
   created_at: string;
   updated_at: string;
@@ -66,7 +66,7 @@ export interface StudentExercise {
   curriculum_alignment?: string;
   generated_by: string;
   generation_prompt?: string;
-  chale_response?: any;
+  naano_response?: any;
   syto_formatted?: any;
   created_at: string;
   updated_at: string;
@@ -88,7 +88,7 @@ export interface StudentQuestion {
   curriculum_alignment?: string;
   generated_by: string;
   generation_prompt?: string;
-  chale_response?: any;
+  naano_response?: any;
   syto_formatted?: any;
   created_at: string;
   updated_at: string;
@@ -140,7 +140,7 @@ export interface GenerationLog {
   generation_type: 'module' | 'topic' | 'exercise' | 'question' | 'learning_path' | 'assessment' | 'cultural_content';
   request_data: any;
   generation_prompt: string;
-  chale_response?: any;
+  naano_response?: any;
   syto_formatted?: any;
   generation_success: boolean;
   error_message?: string;
@@ -157,15 +157,15 @@ export interface GenerationLog {
 // STUDENT MODULE OPERATIONS
 // ============================================================================
 
-export class ChaleSupabaseService {
+export class NAANOSupabaseService {
   
   /**
    * Save a generated module for a student
    */
   static async saveStudentModule(
     studentId: string,
-    moduleData: ChaleModuleResponse,
-    requestData: ChaleContentRequest,
+    moduleData: NAANOModuleResponse,
+    requestData: NAANOContentRequest,
     generationPrompt: string
   ): Promise<StudentModule> {
     const moduleRecord = {
@@ -177,9 +177,9 @@ export class ChaleSupabaseService {
       difficulty: requestData.difficulty || 'medium',
       cultural_context: requestData.culturalContext,
       curriculum_alignment: requestData.curriculumTopic,
-      generated_by: 'chale-ai',
+      generated_by: 'naano-ai',
       generation_prompt: generationPrompt,
-      chale_response: moduleData,
+      naano_response: moduleData,
       syto_formatted: moduleData,
       updated_at: new Date().toISOString()
     };
@@ -234,8 +234,8 @@ export class ChaleSupabaseService {
   static async saveStudentTopic(
     studentId: string,
     moduleId: string,
-    topicData: ChaleTopicResponse,
-    requestData: ChaleContentRequest,
+    topicData: NAANOTopicResponse,
+    requestData: NAANOContentRequest,
     generationPrompt: string,
     orderIndex: number
   ): Promise<StudentTopic> {
@@ -249,9 +249,9 @@ export class ChaleSupabaseService {
       difficulty: requestData.difficulty || 'medium',
       cultural_context: requestData.culturalContext,
       curriculum_alignment: requestData.curriculumTopic,
-      generated_by: 'chale-ai',
+      generated_by: 'naano-ai',
       generation_prompt: generationPrompt,
-      chale_response: topicData,
+      naano_response: topicData,
       syto_formatted: topicData,
       updated_at: new Date().toISOString()
     };
@@ -296,8 +296,8 @@ export class ChaleSupabaseService {
   static async saveStudentExercise(
     studentId: string,
     topicId: string,
-    exerciseData: ChaleExerciseResponse,
-    requestData: ChaleContentRequest,
+    exerciseData: NAANOExerciseResponse,
+    requestData: NAANOContentRequest,
     generationPrompt: string,
     orderIndex: number
   ): Promise<StudentExercise> {
@@ -311,9 +311,9 @@ export class ChaleSupabaseService {
       difficulty: requestData.difficulty || 'medium',
       cultural_context: requestData.culturalContext,
       curriculum_alignment: requestData.curriculumTopic,
-      generated_by: 'chale-ai',
+      generated_by: 'naano-ai',
       generation_prompt: generationPrompt,
-      chale_response: exerciseData,
+      naano_response: exerciseData,
       syto_formatted: exerciseData,
       updated_at: new Date().toISOString()
     };
@@ -358,8 +358,8 @@ export class ChaleSupabaseService {
   static async saveStudentQuestion(
     studentId: string,
     exerciseId: string,
-    questionData: ChaleQuestionResponse,
-    requestData: ChaleContentRequest,
+    questionData: NAANOQuestionResponse,
+    requestData: NAANOContentRequest,
     generationPrompt: string,
     orderIndex: number
   ): Promise<StudentQuestion> {
@@ -376,9 +376,9 @@ export class ChaleSupabaseService {
       difficulty: requestData.difficulty || 'medium',
       cultural_context: requestData.culturalContext,
       curriculum_alignment: requestData.curriculumTopic,
-      generated_by: 'chale-ai',
+      generated_by: 'naano-ai',
       generation_prompt: generationPrompt,
-      chale_response: questionData,
+      naano_response: questionData,
       syto_formatted: questionData,
       updated_at: new Date().toISOString()
     };
@@ -595,7 +595,7 @@ export class ChaleSupabaseService {
     generationType: GenerationLog['generation_type'],
     requestData: any,
     generationPrompt: string,
-    chaleResponse?: any,
+    naanoResponse?: any,
     sytoFormatted?: any,
     success: boolean = true,
     errorMessage?: string,
@@ -607,7 +607,7 @@ export class ChaleSupabaseService {
       generation_type: generationType,
       request_data: requestData,
       generation_prompt: generationPrompt,
-      chale_response: chaleResponse,
+      naano_response: naanoResponse,
       syto_formatted: sytoFormatted,
       generation_success: success,
       error_message: errorMessage,
@@ -616,7 +616,7 @@ export class ChaleSupabaseService {
     };
 
     const { data, error } = await supabase
-      .from('chale_generation_log')
+      .from('naano_generation_log')
       .insert(logRecord)
       .select()
       .single();
@@ -637,7 +637,7 @@ export class ChaleSupabaseService {
     limit: number = 50
   ): Promise<GenerationLog[]> {
     let query = supabase
-      .from('chale_generation_log')
+      .from('naano_generation_log')
       .select('*')
       .eq('student_id', studentId)
       .order('created_at', { ascending: false })

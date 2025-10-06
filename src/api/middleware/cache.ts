@@ -1,7 +1,7 @@
 import { Request, Response, NextFunction, RequestHandler } from 'express';
 
 /**
- * Simple in-memory cache for Chale API responses
+ * Simple in-memory cache for NAANO API responses
  * Reduces API calls and improves response times for repeated requests
  */
 
@@ -203,7 +203,6 @@ export const smartCache: RequestHandler = (req, res, next) => {
       cached: true,
       cacheTimestamp: new Date().toISOString()
     });
-    return;
     return;
   }
   

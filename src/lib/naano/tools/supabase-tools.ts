@@ -4,7 +4,7 @@ import { ProgressTrackerToolSchema, type ProgressTrackingResult } from '../types
 
 /**
  * Progress Tracker Tool Definition
- * Allows Chale to record student progress in the database
+ * Allows NAANO to record student progress in the database
  */
 export const progressTrackerTool: Anthropic.Tool = {
   name: 'track_progress',

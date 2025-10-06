@@ -1,24 +1,24 @@
 import Anthropic from '@anthropic-ai/sdk';
 import { CHALE_BASE_SYSTEM_PROMPT, QUESTION_GENERATION_PROMPT, CHAT_TUTOR_PROMPT, CONCEPT_EXPLANATION_PROMPT } from './prompts/base-system-prompt';
-import { CHALE_CONFIG, validateChaleConfig } from './config';
+import { CHALE_CONFIG, validateNAANOConfig } from './config';
 import { curriculumSearchTool, handleCurriculumSearch } from './tools/curriculum-search';
 import { questionGeneratorTool, handleQuestionGeneration } from './tools/question-generator';
 import { progressTrackerTool, handleProgressTracking, getStudentProgressTool, handleGetStudentProgress } from './tools/supabase-tools';
-import type { ChaleRequest, ChaleResponse, AnthropicMessageParam, AnthropicToolUseBlock, AnthropicTextBlock } from './types';
+import type { NAANORequest, NAANOResponse, AnthropicMessageParam, AnthropicToolUseBlock, AnthropicTextBlock } from './types';
 
 /**
- * Chale AI Agent
+ * NAANO AI Agent
  * Claude-powered educational assistant for Ghanaian primary students
  */
-export class ChaleAgent {
+export class NAANOAgent {
   private client: Anthropic;
   private conversationHistory: AnthropicMessageParam[] = [];
   private systemPrompt: string;
 
   constructor() {
     // Validate configuration
-    if (!validateChaleConfig()) {
-      throw new Error('Invalid Chale configuration. Please check environment variables.');
+    if (!validateNAANOConfig()) {
+      throw new Error('Invalid NAANO configuration. Please check environment variables.');
     }
 
     // Initialize Anthropic client
@@ -31,9 +31,9 @@ export class ChaleAgent {
   }
 
   /**
-   * Process a request with Chale (non-streaming)
+   * Process a request with NAANO (non-streaming)
    */
-  async processRequest(request: ChaleRequest): Promise<ChaleResponse> {
+  async processRequest(request: NAANORequest): Promise<NAANOResponse> {
     const startTime = Date.now();
     const toolsUsed: string[] = [];
 
@@ -126,7 +126,7 @@ export class ChaleAgent {
   /**
    * Process request with streaming
    */
-  async *processRequestStream(request: ChaleRequest): AsyncGenerator<string> {
+  async *processRequestStream(request: NAANORequest): AsyncGenerator<string> {
     // Customize system prompt based on request type
     const systemPrompt = this.getSystemPrompt(request.type);
 
@@ -221,7 +221,7 @@ export class ChaleAgent {
   /**
    * Get system prompt based on request type
    */
-  private getSystemPrompt(requestType: ChaleRequest['type']): string {
+  private getSystemPrompt(requestType: NAANORequest['type']): string {
     switch (requestType) {
       case 'generate_questions':
         return `${CHALE_BASE_SYSTEM_PROMPT}\n\n${QUESTION_GENERATION_PROMPT}`;
@@ -238,8 +238,8 @@ export class ChaleAgent {
    * Map request type to response type
    */
   private mapRequestTypeToResponseType(
-    requestType: ChaleRequest['type']
-  ): ChaleResponse['type'] {
+    requestType: NAANORequest['type']
+  ): NAANOResponse['type'] {
     switch (requestType) {
       case 'generate_questions':
         return 'questions';

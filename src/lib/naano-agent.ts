@@ -1,20 +1,20 @@
 import { openai } from '@ai-sdk/openai';
 import { generateText } from 'ai';
-import { createChaleAgent, generateChaleSystemPrompt, ChaleContentRequest, ChaleContentResponse, validateChaleContent } from './chale-config.js';
+import { createNAANOAgent, generateNAANOSystemPrompt, NAANOContentRequest, NAANOContentResponse, validateNAANOContent } from './naano-config.js';
 import { getCurriculumContext } from './weaviate-client.js';
 import { v4 as uuidv4 } from 'uuid';
 
 /**
- * Core Chale AI Agent Implementation
+ * Core NAANO AI Agent Implementation
  * Educational content generator using Pica OneTool framework
  */
 
-export class ChaleAgent {
+export class NAANOAgent {
   private pica: any;
   private systemPrompt: string | null = null;
 
   constructor() {
-    this.pica = createChaleAgent();
+    this.pica = createNAANOAgent();
   }
 
   /**
@@ -22,14 +22,14 @@ export class ChaleAgent {
    */
   async initialize(): Promise<void> {
     if (!this.systemPrompt) {
-      this.systemPrompt = await generateChaleSystemPrompt(this.pica);
+      this.systemPrompt = await generateNAANOSystemPrompt(this.pica);
     }
   }
 
   /**
    * Generate educational content using Pica OneTool
    */
-  async generateContent(request: ChaleContentRequest): Promise<ChaleContentResponse> {
+  async generateContent(request: NAANOContentRequest): Promise<NAANOContentResponse> {
     await this.initialize();
 
     try {
@@ -56,14 +56,14 @@ export class ChaleAgent {
       // Parse and validate the generated content
       const generatedContent = this.parseGeneratedContent(text);
       
-      if (!validateChaleContent(generatedContent)) {
-        throw new Error('Generated content does not meet Chale standards');
+      if (!validateNAANOContent(generatedContent)) {
+        throw new Error('Generated content does not meet NAANO standards');
       }
 
       return generatedContent;
 
     } catch (error) {
-      console.error('Error generating content with Chale:', error);
+      console.error('Error generating content with NAANO:', error);
       throw new Error(`Failed to generate ${request.type} content: ${error instanceof Error ? error.message : 'Unknown error'}`);
     }
   }
@@ -71,7 +71,7 @@ export class ChaleAgent {
   /**
    * Build the generation prompt based on request and curriculum context
    */
-  private buildGenerationPrompt(request: ChaleContentRequest, curriculumContext: string): string {
+  private buildGenerationPrompt(request: NAANOContentRequest, curriculumContext: string): string {
     const basePrompt = `Generate a ${request.type} for ${request.subject} grade ${request.grade}.`;
     
     let specificInstructions = '';
@@ -139,7 +139,7 @@ CURRICULUM CONTEXT:
 ${curriculumContext}
 
 IMPORTANT REQUIREMENTS:
-1. Output MUST be valid JSON matching the ChaleContentResponse format
+1. Output MUST be valid JSON matching the NAANOContentResponse format
 2. Include authentic Ghanaian cultural references
 3. Use age-appropriate language for grade ${request.grade}
 4. Align with Ghana's national curriculum standards
@@ -152,7 +152,7 @@ Generate the content now as a JSON object:`;
   /**
    * Parse and clean the generated content
    */
-  private parseGeneratedContent(text: string): ChaleContentResponse {
+  private parseGeneratedContent(text: string): NAANOContentResponse {
     try {
       // Clean the text to extract JSON
       let cleanedText = text.trim();
@@ -188,8 +188,8 @@ Generate the content now as a JSON object:`;
   /**
    * Generate multiple content items in batch
    */
-  async generateBatch(requests: ChaleContentRequest[]): Promise<ChaleContentResponse[]> {
-    const results: ChaleContentResponse[] = [];
+  async generateBatch(requests: NAANOContentRequest[]): Promise<NAANOContentResponse[]> {
+    const results: NAANOContentResponse[] = [];
     
     for (const request of requests) {
       try {
@@ -211,10 +211,10 @@ Generate the content now as a JSON object:`;
   /**
    * Validate content against Ghana curriculum standards
    */
-  async validateContent(content: ChaleContentResponse): Promise<boolean> {
+  async validateContent(content: NAANOContentResponse): Promise<boolean> {
     try {
       // Basic validation checks
-      const basicValidation = validateChaleContent(content);
+      const basicValidation = validateNAANOContent(content);
       if (!basicValidation) {
         return false;
       }
@@ -233,7 +233,7 @@ Generate the content now as a JSON object:`;
   /**
    * Validate content against curriculum standards
    */
-  private async validateAgainstCurriculum(content: ChaleContentResponse): Promise<boolean> {
+  private async validateAgainstCurriculum(content: NAANOContentResponse): Promise<boolean> {
     try {
       // Get relevant curriculum context
       const curriculumContext = await getCurriculumContext(
@@ -271,4 +271,4 @@ Respond with only "VALID" or "INVALID" followed by a brief reason.`;
 }
 
 // Export singleton instance
-export const chaleAgent = new ChaleAgent();
+export const naanoAgent = new NAANOAgent();

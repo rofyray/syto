@@ -1,7 +1,7 @@
 import { Request, Response, NextFunction } from 'express';
 
 /**
- * Error handling middleware for Chale API
+ * Error handling middleware for NAANO API
  * Provides consistent error responses and logging
  */
 

@@ -32,7 +32,7 @@ export function AppLayout({ children, requireAuth = true }: AppLayoutProps) {
   }
 
   return (
-    <div className="flex min-h-screen flex-col">
+    <div className="flex min-h-screen flex-col bg-gradient-to-br from-ghana-green/5 via-ghana-gold/5 to-ghana-red/5 dark:from-gray-900 dark:via-gray-900 dark:to-gray-950">
       <Header />
       <main className="flex-1 pt-16">{children}</main>
       <Footer />

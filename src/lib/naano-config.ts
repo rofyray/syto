@@ -1,16 +1,16 @@
 import { Pica } from '@picahq/ai';
-import { ChaleContentRequest, ChaleContentResponse } from '../types/chale.js';
+import { NAANOContentRequest, NAANOContentResponse } from '../types/naano.js';
 
 // Re-export types for other modules
-export type { ChaleContentRequest, ChaleContentResponse } from '../types/chale.js';
+export type { NAANOContentRequest, NAANOContentResponse } from '../types/naano.js';
 
 /**
- * Chale AI Agent Configuration
+ * NAANO AI Agent Configuration
  * Educational content generator for Ghanaian primary students (grades 4-6)
  */
 
 // Initialize Pica with Weaviate and OpenAI connectors
-export function createChaleAgent() {
+export function createNAANOAgent() {
   // For testing/development, allow a mock implementation if PICA_SECRET_KEY is not available
   if (!process.env.PICA_SECRET_KEY) {
     console.warn('PICA_SECRET_KEY not found, using mock implementation');
@@ -22,21 +22,21 @@ export function createChaleAgent() {
   }
 
   return new Pica(process.env.PICA_SECRET_KEY, {
-    connectors: ['weaviate', 'openai'], // Specific connectors for Chale
+    connectors: ['weaviate', 'openai'], // Specific connectors for NAANO
     knowledgeAgent: true, // Enable for educational content generation
     authkit: false // Not needed for internal agent
   });
 }
 
-// Create and export the chaleAgent instance
-export const chaleAgent = createChaleAgent();
+// Create and export the naanoAgent instance
+export const naanoAgent = createNAANOAgent();
 
 // Add generateContent method to the agent
-export const generateContent = async (request: ChaleContentRequest): Promise<ChaleContentResponse> => {
+export const generateContent = async (request: NAANOContentRequest): Promise<NAANOContentResponse> => {
   // This is a simplified implementation - in practice, you'd use Pica's full capabilities
   // For now, return a mock response that matches the expected structure
-  const mockResponse: ChaleContentResponse = {
-    id: `chale_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
+  const mockResponse: NAANOContentResponse = {
+    id: `naano_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
     type: request.type,
     title: request.title,
     description: `Generated ${request.type} for ${request.subject} grade ${request.grade}`,
@@ -60,18 +60,18 @@ export const generateContent = async (request: ChaleContentRequest): Promise<Cha
 };
 
 /**
- * Generate Chale's system prompt with persona and constraints
+ * Generate NAANO's system prompt with persona and constraints
  */
-export async function generateChaleSystemPrompt(pica: Pica): Promise<string> {
+export async function generateNAANOSystemPrompt(pica: Pica): Promise<string> {
   const basePicaPrompt = await pica.generateSystemPrompt();
   
   return `${basePicaPrompt}
 
 CHALE PERSONA & INSTRUCTIONS:
-You are Chale, a caring and friendly Ghanaian primary school teacher AI agent specializing in creating educational content for Ghanaian students.
+You are NAANO, a caring and friendly Ghanaian primary school teacher AI agent specializing in creating educational content for Ghanaian students.
 
 CORE IDENTITY:
-- Name: Chale (friendly Ghanaian term meaning "friend")
+- Name: NAANO (friendly Ghanaian term meaning "friend")
 - Role: Educational content generator and virtual teacher
 - Target Audience: Ghanaian primary school students (grades 4-6)
 - Subjects: English and Mathematics
@@ -121,7 +121,7 @@ STRICT RESTRICTIONS:
 
 BEHAVIORAL GUIDELINES:
 - Use simple, clear language appropriate for primary school students
-- Incorporate Ghanaian English expressions naturally (e.g., "chale", "small small", "plenty")
+- Incorporate Ghanaian English expressions naturally (e.g., "naano", "small small", "plenty")
 - Include local references (Ghanaian foods, places, names, customs)
 - Be encouraging and celebrate student progress
 - Maintain educational authority while being approachable
@@ -153,9 +153,9 @@ Remember: You are here to help Ghanaian children learn and grow through quality,
 }
 
 /**
- * Validation function for Chale content
+ * Validation function for NAANO content
  */
-export function validateChaleContent(content: any): content is ChaleContentResponse {
+export function validateNAANOContent(content: any): content is NAANOContentResponse {
   return (
     content &&
     typeof content.id === 'string' &&

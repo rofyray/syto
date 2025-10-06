@@ -2,7 +2,7 @@ import { Request, Response, NextFunction } from 'express';
 import { createClient } from '@supabase/supabase-js';
 
 /**
- * Authentication middleware for Chale API
+ * Authentication middleware for NAANO API
  * Integrates with Supabase authentication system
  */
 

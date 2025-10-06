@@ -6,7 +6,7 @@ An innovative EdTech platform designed specifically for Ghanaian Primary 4-6 stu
 
 - 📚 **Curriculum-Aligned Content**: Ghana national curriculum for Primary 4-6
 - 🎯 **Interactive Learning**: Modules → Topics → Exercises → Questions hierarchy
-- 🤖 **AI Learning Assistant (Chale)**: GPT-4o powered tutor with cultural context
+- 🤖 **AI Learning Assistant (NAANO)**: GPT-4o powered tutor with cultural context
 - 📊 **Progress Tracking**: Scores, completion rates, and learning analytics
 - 🌍 **Cultural Relevance**: Ghanaian names, foods, locations, and context
 - 🌙 **Theme Support**: Dark/Light mode with Ghana flag colors
@@ -117,7 +117,7 @@ syto/
 │   │   └── ui/                 # shadcn/ui components
 │   ├── lib/                     # Utilities and services
 │   │   ├── supabase.ts         # Database client
-│   │   ├── chale-agent.ts      # AI agent
+│   │   ├── naano-agent.ts      # AI agent
 │   │   ├── weaviate-client.ts  # Vector DB client
 │   │   └── pdf-ingestion.ts    # PDF processing
 │   ├── pages/                   # Page components
@@ -144,13 +144,13 @@ npm run build:all        # Build both frontend and backend
 
 npm run preview          # Preview production build
 npm run ingest-pdfs      # Ingest curriculum PDFs to Weaviate
-npm run test-chale-api   # Test Chale AI API
+npm run test-naano-api   # Test NAANO AI API
 ```
 
 ## Key Features Explained
 
-### Chale AI Assistant
-Chale (Ghanaian slang for "friend") is an AI-powered teaching assistant that:
+### NAANO AI Assistant
+NAANO (Ghanaian slang for "friend") is an AI-powered teaching assistant that:
 - Generates curriculum-aligned questions and exercises
 - Answers student questions with culturally relevant examples
 - Uses RAG (Retrieval-Augmented Generation) with Ghana curriculum PDFs
@@ -204,7 +204,7 @@ Chale (Ghanaian slang for "friend") is an AI-powered teaching assistant that:
 - `student_modules`, `student_topics`, `student_exercises`, `student_questions`: Personalized content
 - `student_progress`: Enhanced progress tracking
 - `student_learning_analytics`: Performance metrics
-- `chale_generation_log`: AI generation audit trail
+- `naano_generation_log`: AI generation audit trail
 
 ## Cultural Context
 

@@ -17,20 +17,24 @@ export default {
         foreground: 'hsl(var(--foreground))',
         ghana: {
           red: {
-            DEFAULT: '#D32F2F',
+            DEFAULT: '#CE1126',
             dark: '#8B0000',
+            light: '#E53935',
           },
           gold: {
-            DEFAULT: '#FFC107',
-            dark: '#B8860B',
+            DEFAULT: '#FCD116',
+            dark: '#F9A825',
+            light: '#FFD54F',
           },
           green: {
-            DEFAULT: '#4CAF50',
-            dark: '#006400',
+            DEFAULT: '#006B3F',
+            dark: '#004D2C',
+            light: '#4CAF50',
           },
           black: {
-            DEFAULT: '#333333',
+            DEFAULT: '#000000',
             dark: '#1A1A1A',
+            light: '#333333',
           },
         },
         primary: {
@@ -116,6 +120,30 @@ export default {
         lg: '0.5rem',
         md: '0.375rem',
         sm: '0.25rem',
+        xl: '1rem',
+        '2xl': '1.5rem',
+        '3xl': '2rem',
+      },
+      backdropBlur: {
+        xs: '2px',
+        sm: '4px',
+        md: '8px',
+        lg: '12px',
+        xl: '16px',
+        '2xl': '24px',
+        '3xl': '40px',
+      },
+      backgroundImage: {
+        'gradient-radial': 'radial-gradient(var(--tw-gradient-stops))',
+        'gradient-conic': 'conic-gradient(from 180deg at 50% 50%, var(--tw-gradient-stops))',
+        'glass-gradient': 'linear-gradient(135deg, rgba(255, 255, 255, 0.1) 0%, rgba(255, 255, 255, 0.05) 100%)',
+        'glass-gradient-dark': 'linear-gradient(135deg, rgba(255, 255, 255, 0.05) 0%, rgba(255, 255, 255, 0.02) 100%)',
+      },
+      boxShadow: {
+        'glass': '0 8px 32px 0 rgba(31, 38, 135, 0.15)',
+        'glass-lg': '0 8px 32px 0 rgba(31, 38, 135, 0.25)',
+        'glass-xl': '0 8px 40px 0 rgba(31, 38, 135, 0.35)',
+        'inner-glow': 'inset 0 1px 0 0 rgba(255, 255, 255, 0.1)',
       },
       keyframes: {
         'accordion-down': {
@@ -138,6 +166,18 @@ export default {
           from: { transform: 'translateX(-100%)' },
           to: { transform: 'translateX(0)' },
         },
+        'slide-up': {
+          from: { transform: 'translateY(20px)', opacity: '0' },
+          to: { transform: 'translateY(0)', opacity: '1' },
+        },
+        'scale-in': {
+          from: { transform: 'scale(0.95)', opacity: '0' },
+          to: { transform: 'scale(1)', opacity: '1' },
+        },
+        'shimmer': {
+          '0%': { backgroundPosition: '-200% 0' },
+          '100%': { backgroundPosition: '200% 0' },
+        },
       },
       animation: {
         'accordion-down': 'accordion-down 0.2s ease-out',
@@ -145,6 +185,9 @@ export default {
         'fade-in': 'fade-in 0.3s ease-out',
         'fade-out': 'fade-out 0.3s ease-out',
         'slide-in': 'slide-in 0.3s ease-out',
+        'slide-up': 'slide-up 0.4s ease-out',
+        'scale-in': 'scale-in 0.3s ease-out',
+        'shimmer': 'shimmer 2s linear infinite',
       },
     },
   },

@@ -181,7 +181,7 @@ export async function updateUserProgress(progress: Partial<UserProgress>): Promi
   return true;
 }
 
-// Functions to save Chale-generated content
+// Functions to save NAANO-generated content
 export async function saveModule(module: Omit<Module, 'topics'>): Promise<string | null> {
   const { data, error } = await supabase
     .from('modules')

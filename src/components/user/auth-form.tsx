@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, Link } from "react-router-dom";
 import { supabase } from "@/lib/supabase";
 import { Button } from "@/components/ui/button";
 import { Logo } from "@/components/logo";
@@ -115,224 +115,233 @@ export function AuthForm({ isLogin = true }: AuthFormProps) {
   };
 
   return (
-    <div className="flex min-h-screen flex-col items-center justify-center bg-background p-4">
-      {/* Theme Toggle */}
-      <div className="fixed top-0 left-0 right-0 z-50 border-b bg-background/95 backdrop-blur-sm">
-        <div className="container mx-auto px-4 h-16 flex items-center justify-end">
-          <ThemeToggle />
-        </div>
+    <div className="min-h-screen relative overflow-hidden bg-gradient-to-br from-ghana-green/10 via-ghana-gold/5 to-ghana-red/10 dark:from-gray-900 dark:via-gray-900 dark:to-gray-950 flex items-center justify-center p-4">
+      {/* Decorative background elements */}
+      <div className="absolute inset-0 overflow-hidden pointer-events-none">
+        <div className="absolute -top-1/2 -right-1/4 w-96 h-96 bg-ghana-gold/20 rounded-full blur-3xl"></div>
+        <div className="absolute -bottom-1/2 -left-1/4 w-96 h-96 bg-ghana-green/20 rounded-full blur-3xl"></div>
       </div>
 
-      <div className="mx-auto w-full max-w-md space-y-8 rounded-xl border bg-card p-8 shadow-lg">
-        <div className="flex flex-col items-center justify-center space-y-2 text-center">
-          <Logo size="lg" />
-          <h1 className="text-2xl font-bold">
-            {showForgotPassword
-              ? "Reset Your Password"
-              : isLogin
-              ? "Welcome back to Syto"
-              : "Join Syto Learning Platform"}
-          </h1>
-          <p className="text-sm text-muted-foreground">
-            {showForgotPassword
-              ? "Enter your email address and we'll send you a link to reset your password"
-              : isLogin
-              ? "Sign in to continue your learning journey"
-              : "Create an account to start learning"}
-          </p>
-        </div>
+      {/* Theme Toggle */}
+      <div className="fixed top-4 right-4 z-50">
+        <ThemeToggle />
+      </div>
 
-        {error && (
-          <div className="rounded-md bg-error-100 p-3 text-sm text-error-600 dark:bg-error-900/30 dark:text-error-400">
-            {error}
-          </div>
-        )}
-
-        {success && (
-          <div className="rounded-md bg-success-100 p-3 text-sm text-success-600 dark:bg-success-900/30 dark:text-success-400">
-            {success}
-          </div>
-        )}
-
-        <form onSubmit={handleSubmit} className="space-y-4">
-          {!isLogin && !showForgotPassword && (
-            <div className="space-y-2">
-              <label
-                className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70"
-                htmlFor="firstName"
-              >
-                First Name
-              </label>
-              <input
-                className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring"
-                id="firstName"
-                type="text"
-                placeholder="Enter your first name"
-                required
-                value={firstName}
-                onChange={(e) => setFirstName(e.target.value)}
-              />
-            </div>
-          )}
-
-          {!isLogin && !showForgotPassword && (
-            <div className="space-y-2">
-              <label
-                className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70"
-                htmlFor="lastName"
-              >
-                Last Name
-              </label>
-              <input
-                className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-ring"
-                id="lastName"
-                type="text"
-                placeholder="Enter your last name"
-                required
-                value={lastName}
-                onChange={(e) => setLastName(e.target.value)}
-              />
-            </div>
-          )}
-
-          <div className="space-y-2">
-            <label
-              className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70"
-              htmlFor="email"
-            >
-              Email
-            </label>
-            <input
-              className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring"
-              id="email"
-              type="email"
-              placeholder="student@example.com"
-              required
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
-            />
+      <div className="relative z-10 mx-auto w-full max-w-md animate-scale-in">
+        {/* Glass card */}
+        <div className="bg-white/60 dark:bg-white/5 backdrop-blur-xl rounded-3xl p-8 border border-white/20 dark:border-white/10 shadow-glass-xl">
+          <div className="flex flex-col items-center justify-center space-y-2 text-center mb-6">
+            <Link to="/" className="cursor-pointer hover:opacity-80 transition-opacity">
+              <Logo size="lg" />
+            </Link>
+            <h1 className="text-3xl font-bold bg-gradient-to-r from-ghana-green to-ghana-gold bg-clip-text text-transparent">
+              {showForgotPassword
+                ? "Reset Your Password"
+                : isLogin
+                ? "Welcome back to Syto"
+                : "Join Syto Learning Platform"}
+            </h1>
+            <p className="text-sm text-muted-foreground">
+              {showForgotPassword
+                ? "Enter your email address and we'll send you a link to reset your password"
+                : isLogin
+                ? "Sign in to continue your learning journey"
+                : "Create an account to start learning"}
+            </p>
           </div>
 
-          {!showForgotPassword && (
-            <div className="space-y-2">
-              <label
-                className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70"
-                htmlFor="password"
-              >
-                Password
-              </label>
-              <input
-                className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring"
-                id="password"
-                type="password"
-                required
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-              />
+          {error && (
+            <div className="rounded-2xl bg-error-100/80 dark:bg-error-900/30 backdrop-blur-sm p-3 text-sm text-error-600 dark:text-error-400 border border-error-200 dark:border-error-800 mb-4">
+              {error}
             </div>
           )}
 
-          {!isLogin && !showForgotPassword && (
-            <div className="space-y-2">
-              <label
-                className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70"
-                htmlFor="grade"
-              >
-                Grade Level
-              </label>
-              <select
-                className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-ring"
-                id="grade"
-                value={grade}
-                onChange={(e) => setGrade(Number(e.target.value))}
-              >
-                <option value={4}>Primary 4</option>
-                <option value={5}>Primary 5</option>
-                <option value={6}>Primary 6</option>
-              </select>
+          {success && (
+            <div className="rounded-2xl bg-success-100/80 dark:bg-success-900/30 backdrop-blur-sm p-3 text-sm text-success-600 dark:text-success-400 border border-success-200 dark:border-success-800 mb-4">
+              {success}
             </div>
           )}
 
-          <Button
-            type="submit"
-            className="w-full bg-ghana-green hover:bg-ghana-green-dark dark:bg-ghana-green-dark dark:hover:bg-ghana-green text-white"
-            variant="ghana"
-            disabled={loading || !!success}
-          >
-            {/* Only show spinner if loading and no success message */}
-            {loading && !success ? (
-              <span className="flex items-center gap-2">
-                <svg
-                  className="h-4 w-4 animate-spin"
-                  xmlns="http://www.w3.org/2000/svg"
-                  fill="none"
-                  viewBox="0 0 24 24"
+          <form onSubmit={handleSubmit} className="space-y-4">
+            {!isLogin && !showForgotPassword && (
+              <div className="space-y-2">
+                <label
+                  className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70"
+                  htmlFor="firstName"
                 >
-                  <circle
-                    className="opacity-25"
-                    cx="12"
-                    cy="12"
-                    r="10"
-                    stroke="currentColor"
-                    strokeWidth="4"
-                  ></circle>
-                  <path
-                    className="opacity-75"
-                    fill="currentColor"
-                    d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
-                  ></path>
-                </svg>
-                Signing In...
-              </span>
-            ) : showForgotPassword ? (
-              "Send Reset Email"
-            ) : isLogin ? (
-              "Sign In"
-            ) : (
-              "Create Account"
+                  First Name
+                </label>
+                <input
+                  className="flex h-11 w-full rounded-xl border border-white/20 dark:border-white/10 bg-white/50 dark:bg-white/5 backdrop-blur-sm px-4 py-2 text-sm placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ghana-green dark:focus:ring-ghana-green-light focus:border-transparent transition-all"
+                  id="firstName"
+                  type="text"
+                  placeholder="Enter your first name"
+                  required
+                  value={firstName}
+                  onChange={(e) => setFirstName(e.target.value)}
+                />
+              </div>
             )}
-          </Button>
-        </form>
 
-        <div className="mt-4 text-center text-sm space-y-2">
-          {showForgotPassword ? (
-            <button
-              type="button"
-              onClick={handleBackToLogin}
-              className="font-medium text-ghana-green hover:text-ghana-green-dark dark:text-ghana-green dark:hover:text-ghana-green transition-colors"
+            {!isLogin && !showForgotPassword && (
+              <div className="space-y-2">
+                <label
+                  className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70"
+                  htmlFor="lastName"
+                >
+                  Last Name
+                </label>
+                <input
+                  className="flex h-11 w-full rounded-xl border border-white/20 dark:border-white/10 bg-white/50 dark:bg-white/5 backdrop-blur-sm px-4 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-ghana-green dark:focus:ring-ghana-green-light focus:border-transparent transition-all"
+                  id="lastName"
+                  type="text"
+                  placeholder="Enter your last name"
+                  required
+                  value={lastName}
+                  onChange={(e) => setLastName(e.target.value)}
+                />
+              </div>
+            )}
+
+            <div className="space-y-2">
+              <label
+                className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70"
+                htmlFor="email"
+              >
+                Email
+              </label>
+              <input
+                className="flex h-11 w-full rounded-xl border border-white/20 dark:border-white/10 bg-white/50 dark:bg-white/5 backdrop-blur-sm px-4 py-2 text-sm placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ghana-green dark:focus:ring-ghana-green-light focus:border-transparent transition-all"
+                id="email"
+                type="email"
+                placeholder="student@example.com"
+                required
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+              />
+            </div>
+
+            {!showForgotPassword && (
+              <div className="space-y-2">
+                <label
+                  className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70"
+                  htmlFor="password"
+                >
+                  Password
+                </label>
+                <input
+                  className="flex h-11 w-full rounded-xl border border-white/20 dark:border-white/10 bg-white/50 dark:bg-white/5 backdrop-blur-sm px-4 py-2 text-sm placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ghana-green dark:focus:ring-ghana-green-light focus:border-transparent transition-all"
+                  id="password"
+                  type="password"
+                  required
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                />
+              </div>
+            )}
+
+            {!isLogin && !showForgotPassword && (
+              <div className="space-y-2">
+                <label
+                  className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70"
+                  htmlFor="grade"
+                >
+                  Grade Level
+                </label>
+                <select
+                  className="flex h-11 w-full rounded-xl border border-white/20 dark:border-white/10 bg-white/50 dark:bg-white/5 backdrop-blur-sm px-4 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-ghana-green dark:focus:ring-ghana-green-light focus:border-transparent transition-all cursor-pointer"
+                  id="grade"
+                  value={grade}
+                  onChange={(e) => setGrade(Number(e.target.value))}
+                >
+                  <option value={4}>Primary 4</option>
+                  <option value={5}>Primary 5</option>
+                  <option value={6}>Primary 6</option>
+                </select>
+              </div>
+            )}
+
+            <Button
+              type="submit"
+              size="lg"
+              className="w-full h-12 mt-6 bg-gradient-to-r from-ghana-green to-ghana-green-light hover:from-ghana-green-dark hover:to-ghana-green text-white rounded-xl shadow-lg hover:shadow-xl transition-all duration-300 font-semibold"
+              disabled={loading || !!success}
             >
-              Back to Sign In
-            </button>
-          ) : isLogin ? (
-            <>
+              {/* Only show spinner if loading and no success message */}
+              {loading && !success ? (
+                <span className="flex items-center gap-2">
+                  <svg
+                    className="h-5 w-5 animate-spin"
+                    xmlns="http://www.w3.org/2000/svg"
+                    fill="none"
+                    viewBox="0 0 24 24"
+                  >
+                    <circle
+                      className="opacity-25"
+                      cx="12"
+                      cy="12"
+                      r="10"
+                      stroke="currentColor"
+                      strokeWidth="4"
+                    ></circle>
+                    <path
+                      className="opacity-75"
+                      fill="currentColor"
+                      d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
+                    ></path>
+                  </svg>
+                  Signing In...
+                </span>
+              ) : showForgotPassword ? (
+                "Send Reset Email"
+              ) : isLogin ? (
+                "Sign In"
+              ) : (
+                "Create Account"
+              )}
+            </Button>
+          </form>
+
+          <div className="mt-6 text-center text-sm space-y-2">
+            {showForgotPassword ? (
               <button
                 type="button"
-                onClick={() => setShowForgotPassword(true)}
-                className="font-medium text-ghana-green hover:text-ghana-green-dark dark:text-ghana-green dark:hover:text-ghana-green transition-colors"
+                onClick={handleBackToLogin}
+                className="font-medium text-ghana-green hover:text-ghana-gold dark:text-ghana-green-light dark:hover:text-ghana-gold transition-colors"
               >
-                Forgot Password?
+                Back to Sign In
               </button>
-              <p className="mt-2">
-                Don't have an account?{" "}
-                <a
-                  href="/signup"
-                  className="font-medium text-ghana-green hover:text-ghana-green-dark dark:text-ghana-green dark:hover:text-ghana-green transition-colors"
+            ) : isLogin ? (
+              <>
+                <button
+                  type="button"
+                  onClick={() => setShowForgotPassword(true)}
+                  className="font-medium text-ghana-green hover:text-ghana-gold dark:text-ghana-green-light dark:hover:text-ghana-gold transition-colors"
                 >
-                  Create one
+                  Forgot Password?
+                </button>
+                <p className="mt-2">
+                  Don't have an account?{" "}
+                  <a
+                    href="/signup"
+                    className="font-medium text-ghana-green hover:text-ghana-gold dark:text-ghana-green-light dark:hover:text-ghana-gold transition-colors"
+                  >
+                    Create one
+                  </a>
+                </p>
+              </>
+            ) : (
+              <p>
+                Already have an account?{" "}
+                <a
+                  href="/login"
+                  className="font-medium text-ghana-green hover:text-ghana-gold dark:text-ghana-green-light dark:hover:text-ghana-gold transition-colors"
+                >
+                  Sign in
                 </a>
               </p>
-            </>
-          ) : (
-            <p>
-              Already have an account?{" "}
-              <a
-                href="/login"
-                className="font-medium text-ghana-green hover:text-ghana-green-dark dark:text-ghana-green dark:hover:text-ghana-green transition-colors"
-              >
-                Sign in
-              </a>
-            </p>
-          )}
+            )}
+          </div>
         </div>
       </div>
     </div>

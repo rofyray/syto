@@ -1,12 +1,12 @@
 /**
- * Type definitions for Chale AI integration
+ * Type definitions for NAANO AI integration
  */
 
 // ============================================================================
 // REQUEST TYPES
 // ============================================================================
 
-export interface ChaleContentRequest {
+export interface NAANOContentRequest {
   type: 'module' | 'topic' | 'exercise' | 'question';
   subject: 'english' | 'mathematics';
   grade: 4 | 5 | 6;
@@ -19,12 +19,12 @@ export interface ChaleContentRequest {
   orderIndex?: number;
 }
 
-export interface ChaleModuleRequest extends Omit<ChaleContentRequest, 'type'> {
+export interface NAANOModuleRequest extends Omit<NAANOContentRequest, 'type'> {
   culturalContext?: string;
   curriculumTopic?: string;
 }
 
-export interface ChaleTopicRequest extends Omit<ChaleContentRequest, 'type'> {
+export interface NAANOTopicRequest extends Omit<NAANOContentRequest, 'type'> {
   moduleContext: string;
   moduleId: string;
   culturalContext?: string;
@@ -32,7 +32,7 @@ export interface ChaleTopicRequest extends Omit<ChaleContentRequest, 'type'> {
   orderIndex?: number;
 }
 
-export interface ChaleExerciseRequest extends Omit<ChaleContentRequest, 'type'> {
+export interface NAANOExerciseRequest extends Omit<NAANOContentRequest, 'type'> {
   topicContext: string;
   topicId: string;
   culturalContext?: string;
@@ -40,7 +40,7 @@ export interface ChaleExerciseRequest extends Omit<ChaleContentRequest, 'type'> 
   orderIndex?: number;
 }
 
-export interface ChaleQuestionRequest extends Omit<ChaleContentRequest, 'type'> {
+export interface NAANOQuestionRequest extends Omit<NAANOContentRequest, 'type'> {
   topic: string;
   exerciseContext: string;
   exerciseId: string;
@@ -49,7 +49,7 @@ export interface ChaleQuestionRequest extends Omit<ChaleContentRequest, 'type'> 
   orderIndex?: number;
 }
 
-export interface ChaleLearningPathRequest extends Omit<ChaleContentRequest, 'type'> {
+export interface NAANOLearningPathRequest extends Omit<NAANOContentRequest, 'type'> {
   topicsCount?: number;
   exercisesPerTopic?: number;
   questionsPerExercise?: number;
@@ -57,17 +57,17 @@ export interface ChaleLearningPathRequest extends Omit<ChaleContentRequest, 'typ
   curriculumTopic?: string;
 }
 
-export interface ChaleBatchRequest {
-  requests: ChaleContentRequest[];
+export interface NAANOBatchRequest {
+  requests: NAANOContentRequest[];
 }
 
-export interface ChaleCulturalContentRequest extends ChaleContentRequest {
+export interface NAANOCulturalContentRequest extends NAANOContentRequest {
   topic: string;
   culturalContext: string;
   contentType?: 'module' | 'topic' | 'exercise' | 'question';
 }
 
-export interface ChaleAssessmentRequest extends ChaleContentRequest {
+export interface NAANOAssessmentRequest extends NAANOContentRequest {
   topic: string;
   questionCount?: number;
 }
@@ -76,7 +76,7 @@ export interface ChaleAssessmentRequest extends ChaleContentRequest {
 // RESPONSE TYPES
 // ============================================================================
 
-export interface ChaleContentResponse {
+export interface NAANOContentResponse {
   id: string;
   type: 'module' | 'topic' | 'exercise' | 'question';
   title: string;
@@ -106,7 +106,7 @@ export interface ChaleContentResponse {
   hints?: string[];
 }
 
-export interface ChaleModuleResponse {
+export interface NAANOModuleResponse {
   id: string;
   title: string;
   description: string;
@@ -121,7 +121,7 @@ export interface ChaleModuleResponse {
   updated_at: string;
 }
 
-export interface ChaleTopicResponse {
+export interface NAANOTopicResponse {
   id: string;
   title: string;
   description: string;
@@ -134,7 +134,7 @@ export interface ChaleTopicResponse {
   updated_at: string;
 }
 
-export interface ChaleExerciseResponse {
+export interface NAANOExerciseResponse {
   id: string;
   title: string;
   description?: string;
@@ -147,7 +147,7 @@ export interface ChaleExerciseResponse {
   updated_at: string;
 }
 
-export interface ChaleQuestionResponse {
+export interface NAANOQuestionResponse {
   id: string;
   question_text: string;
   question_type: 'multiple-choice' | 'true-false' | 'fill-in-blank' | 'short-answer' | 'essay' | 'matching';
@@ -162,9 +162,9 @@ export interface ChaleQuestionResponse {
   updated_at: string;
 }
 
-export interface ChaleLearningPathResponse {
-  module: ChaleModuleResponse;
-  topics: (ChaleTopicResponse & { exercises: (ChaleExerciseResponse & { questions: ChaleQuestionResponse[] })[] })[];
+export interface NAANOLearningPathResponse {
+  module: NAANOModuleResponse;
+  topics: (NAANOTopicResponse & { exercises: (NAANOExerciseResponse & { questions: NAANOQuestionResponse[] })[] })[];
 }
 
 // ============================================================================
@@ -191,7 +191,7 @@ export interface BatchGenerationResult {
 // API RESPONSE TYPES
 // ============================================================================
 
-export interface ChaleApiResponse<T = any> {
+export interface NAANOApiResponse<T = any> {
   success: boolean;
   data?: T;
   database?: DatabaseSaveResult;
@@ -206,7 +206,7 @@ export interface ChaleApiResponse<T = any> {
   error?: string;
 }
 
-export interface ChaleHealthResponse {
+export interface NAANOHealthResponse {
   status: 'healthy' | 'unhealthy';
   service: string;
   timestamp: string;
@@ -237,13 +237,13 @@ export interface LearningAnalyticsResponse {
   learning_streak: number;
 }
 
-// Utility functions to transform ChaleContentResponse to specific response types
+// Utility functions to transform NAANOContentResponse to specific response types
 export function transformToModuleResponse(
-  content: ChaleContentResponse,
-  request: ChaleModuleRequest
-): ChaleModuleResponse {
+  content: NAANOContentResponse,
+  request: NAANOModuleRequest
+): NAANOModuleResponse {
   return {
-    id: content.id || `chale_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
+    id: content.id || `naano_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
     title: content.title || request.title,
     description: content.description || '',
     subject: request.subject,
@@ -259,11 +259,11 @@ export function transformToModuleResponse(
 }
 
 export function transformToTopicResponse(
-  content: ChaleContentResponse,
-  request: ChaleTopicRequest
-): ChaleTopicResponse {
+  content: NAANOContentResponse,
+  request: NAANOTopicRequest
+): NAANOTopicResponse {
   return {
-    id: content.id || `chale_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
+    id: content.id || `naano_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
     title: content.title || request.title,
     description: content.description || '',
     content: typeof content.content === 'string' ? content.content : JSON.stringify(content.content || {}),
@@ -277,11 +277,11 @@ export function transformToTopicResponse(
 }
 
 export function transformToExerciseResponse(
-  content: ChaleContentResponse,
-  request: ChaleExerciseRequest
-): ChaleExerciseResponse {
+  content: NAANOContentResponse,
+  request: NAANOExerciseRequest
+): NAANOExerciseResponse {
   return {
-    id: content.id || `chale_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
+    id: content.id || `naano_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
     title: content.title || request.title,
     description: content.description,
     type: (content.type as any) || 'multiple-choice',
@@ -295,11 +295,11 @@ export function transformToExerciseResponse(
 }
 
 export function transformToQuestionResponse(
-  content: ChaleContentResponse,
-  request: ChaleQuestionRequest
-): ChaleQuestionResponse {
+  content: NAANOContentResponse,
+  request: NAANOQuestionRequest
+): NAANOQuestionResponse {
   return {
-    id: content.id || `chale_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
+    id: content.id || `naano_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
     question_text: content.question || content.title || 'Sample question',
     question_type: (content.type as any) || 'multiple-choice',
     options: content.options,
@@ -314,10 +314,10 @@ export function transformToQuestionResponse(
   };
 }
 
-export function transformToLearningPathResponse(content: ChaleContentResponse, request: ChaleLearningPathRequest): ChaleLearningPathResponse {
+export function transformToLearningPathResponse(content: NAANOContentResponse, request: NAANOLearningPathRequest): NAANOLearningPathResponse {
   return {
     module: {
-      id: content.id || `chale_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
+      id: content.id || `naano_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
       title: content.title || `Learning Path for ${request.subject} Grade ${request.grade}`,
       description: content.description || '',
       subject: request.subject,
