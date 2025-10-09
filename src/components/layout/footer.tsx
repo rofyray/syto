@@ -23,7 +23,7 @@ export function Footer() {
               <li>
                 <Link
                   to="/dashboard"
-                  className="text-muted-foreground hover:text-foreground transition-colors"
+                  className="text-muted-foreground hover:text-ghana-gold transition-colors"
                 >
                   Dashboard
                 </Link>
@@ -31,7 +31,7 @@ export function Footer() {
               <li>
                 <Link
                   to="/english"
-                  className="text-muted-foreground hover:text-foreground transition-colors"
+                  className="text-muted-foreground hover:text-ghana-gold transition-colors"
                 >
                   English
                 </Link>
@@ -39,7 +39,7 @@ export function Footer() {
               <li>
                 <Link
                   to="/mathematics"
-                  className="text-muted-foreground hover:text-foreground transition-colors"
+                  className="text-muted-foreground hover:text-ghana-gold transition-colors"
                 >
                   Mathematics
                 </Link>
@@ -47,7 +47,7 @@ export function Footer() {
               <li>
                 <Link
                   to="/naano"
-                  className="text-muted-foreground hover:text-foreground transition-colors"
+                  className="inline-flex items-center px-3 py-1.5 text-sm font-medium border-2 border-ghana-gold text-ghana-gold hover:bg-ghana-gold hover:text-white rounded-lg transition-all"
                 >
                   Ask NAANO
                 </Link>

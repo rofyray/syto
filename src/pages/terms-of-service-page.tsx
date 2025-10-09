@@ -200,7 +200,7 @@ export function TermsOfServicePage() {
               <div className="space-y-6">
                 {section.content.map((item, itemIndex) => (
                   <div key={itemIndex}>
-                    {item.subtitle && (
+                    {'subtitle' in item && item.subtitle && (
                       <h3 className="text-xl font-semibold mb-3 text-ghana-green dark:text-ghana-green-light">
                         {item.subtitle}
                       </h3>
@@ -297,7 +297,7 @@ export function TermsOfServicePage() {
               </div>
               <p className="text-sm text-muted-foreground mt-6">
                 Syto Educational Technology<br />
-                Accra, Ghana
+                Ashaiman, Ghana
               </p>
             </div>
           </div>

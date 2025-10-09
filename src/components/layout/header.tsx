@@ -180,7 +180,7 @@ export function Header() {
           ) : (
             <div className="hidden md:flex items-center space-x-2">
               <Button
-                variant="outline"
+                variant="gold"
                 size="sm"
                 onClick={() => navigate("/login")}
               >
@@ -287,7 +287,7 @@ export function Header() {
             ) : (
               <>
                 <Button
-                  variant="outline"
+                  variant="gold"
                   className="w-full justify-center"
                   onClick={() => navigate("/login")}
                 >

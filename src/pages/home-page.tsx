@@ -222,7 +222,7 @@ export function HomePage() {
                 Empowering Ghanaian Primary 4-6 students with AI-powered learning in English and Mathematics.
               </p>
               <p className="text-sm text-muted-foreground">
-                © {new Date().getFullYear()} Syto. All rights reserved.
+                © {new Date().getFullYear()} Syto EdTech. All rights reserved.
               </p>
             </div>
 
@@ -230,10 +230,14 @@ export function HomePage() {
             <div>
               <h4 className="font-semibold mb-4">Quick Links</h4>
               <ul className="space-y-2 text-sm">
-                <li><Link to="/english" className="text-muted-foreground hover:text-ghana-green transition-colors">English</Link></li>
-                <li><Link to="/mathematics" className="text-muted-foreground hover:text-ghana-green transition-colors">Mathematics</Link></li>
-                <li><Link to="/naano" className="text-muted-foreground hover:text-ghana-green transition-colors">AI Tutor</Link></li>
-                <li><Link to="/dashboard" className="text-muted-foreground hover:text-ghana-green transition-colors">Dashboard</Link></li>
+                <li><Link to="/dashboard" className="text-muted-foreground hover:text-ghana-gold transition-colors">Dashboard</Link></li>
+                <li><Link to="/english" className="text-muted-foreground hover:text-ghana-gold transition-colors">English</Link></li>
+                <li><Link to="/mathematics" className="text-muted-foreground hover:text-ghana-gold transition-colors">Mathematics</Link></li>
+                <li>
+                  <Link to="/naano" className="inline-flex items-center px-3 py-1.5 text-sm font-medium border-2 border-ghana-gold text-ghana-gold hover:bg-ghana-gold hover:text-white rounded-lg transition-all">
+                    AI Tutor
+                  </Link>
+                </li>
               </ul>
             </div>
 
@@ -241,10 +245,10 @@ export function HomePage() {
             <div>
               <h4 className="font-semibold mb-4">Support</h4>
               <ul className="space-y-2 text-sm">
-                <li><Link to="/profile" className="text-muted-foreground hover:text-ghana-green transition-colors">My Profile</Link></li>
-                <li><Link to="/help" className="text-muted-foreground hover:text-ghana-green transition-colors">Help Center</Link></li>
-                <li><Link to="/privacy" className="text-muted-foreground hover:text-ghana-green transition-colors">Privacy Policy</Link></li>
-                <li><Link to="/terms" className="text-muted-foreground hover:text-ghana-green transition-colors">Terms of Service</Link></li>
+                <li><Link to="/profile" className="text-muted-foreground hover:text-ghana-gold transition-colors">My Profile</Link></li>
+                <li><Link to="/help" className="text-muted-foreground hover:text-ghana-gold transition-colors">Help Center</Link></li>
+                <li><Link to="/privacy" className="text-muted-foreground hover:text-ghana-gold transition-colors">Privacy Policy</Link></li>
+                <li><Link to="/terms" className="text-muted-foreground hover:text-ghana-gold transition-colors">Terms of Service</Link></li>
               </ul>
             </div>
           </div>
