@@ -1,6 +1,6 @@
 import Anthropic from '@anthropic-ai/sdk';
-import { supabase } from '../../supabase';
-import { ProgressTrackerToolSchema, type ProgressTrackingResult } from '../types';
+import { supabase } from '../../supabase.js';
+import { ProgressTrackerToolSchema, type ProgressTrackingResult } from '../types.js';
 
 /**
  * Progress Tracker Tool Definition

@@ -5,8 +5,8 @@
 
 import { NAANOAgent } from './agent.js';
 export { NAANOAgent } from './agent.js';
-export * from './types';
-export * from './config';
+export * from './types.js';
+export * from './config.js';
 
 // Singleton instance for server use
 let naanoInstance: NAANOAgent | null = null;

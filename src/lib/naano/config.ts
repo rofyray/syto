@@ -3,7 +3,7 @@
  * Centralized configuration for the Claude-powered NAANO agent
  */
 
-export const CHALE_CONFIG = {
+export const NAANO_CONFIG = {
   // Model configuration
   model: 'claude-sonnet-4-5-20250929',
   maxTokens: 4096,
@@ -72,7 +72,7 @@ export const CHALE_CONFIG = {
 } as const;
 
 // Type for the config
-export type NAANOConfig = typeof CHALE_CONFIG;
+export type NAANOConfig = typeof NAANO_CONFIG;
 
 // Validation helper
 export function validateNAANOConfig(): boolean {
@@ -97,7 +97,7 @@ export function getCurriculumRequirements(subject: 'english' | 'mathematics', gr
   const baseRequirements = {
     subject,
     grade,
-    culturalContext: CHALE_CONFIG.cultural,
+    culturalContext: NAANO_CONFIG.cultural,
   };
 
   if (subject === 'mathematics') {

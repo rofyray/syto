@@ -1,10 +1,10 @@
 import Anthropic from '@anthropic-ai/sdk';
-import { CHALE_BASE_SYSTEM_PROMPT, QUESTION_GENERATION_PROMPT, CHAT_TUTOR_PROMPT, CONCEPT_EXPLANATION_PROMPT } from './prompts/base-system-prompt';
-import { CHALE_CONFIG, validateNAANOConfig } from './config';
-import { curriculumSearchTool, handleCurriculumSearch } from './tools/curriculum-search';
-import { questionGeneratorTool, handleQuestionGeneration } from './tools/question-generator';
-import { progressTrackerTool, handleProgressTracking, getStudentProgressTool, handleGetStudentProgress } from './tools/supabase-tools';
-import type { NAANORequest, NAANOResponse, AnthropicMessageParam, AnthropicToolUseBlock, AnthropicTextBlock } from './types';
+import { NAANO_BASE_SYSTEM_PROMPT, QUESTION_GENERATION_PROMPT, CHAT_TUTOR_PROMPT, CONCEPT_EXPLANATION_PROMPT } from './prompts/base-system-prompt.js';
+import { NAANO_CONFIG, validateNAANOConfig } from './config.js';
+import { curriculumSearchTool, handleCurriculumSearch } from './tools/curriculum-search.js';
+import { questionGeneratorTool, handleQuestionGeneration } from './tools/question-generator.js';
+import { progressTrackerTool, handleProgressTracking, getStudentProgressTool, handleGetStudentProgress } from './tools/supabase-tools.js';
+import type { NAANORequest, NAANOResponse, AnthropicMessageParam, AnthropicToolUseBlock, AnthropicTextBlock } from './types.js';
 
 /**
  * NAANO AI Agent
@@ -27,7 +27,7 @@ export class NAANOAgent {
     });
 
     // Set base system prompt
-    this.systemPrompt = CHALE_BASE_SYSTEM_PROMPT;
+    this.systemPrompt = NAANO_BASE_SYSTEM_PROMPT;
   }
 
   /**
@@ -49,9 +49,9 @@ export class NAANOAgent {
 
       // Create message with tools
       let response = await this.client.messages.create({
-        model: CHALE_CONFIG.model,
-        max_tokens: CHALE_CONFIG.maxTokens,
-        temperature: CHALE_CONFIG.temperature,
+        model: NAANO_CONFIG.model,
+        max_tokens: NAANO_CONFIG.maxTokens,
+        temperature: NAANO_CONFIG.temperature,
         system: systemPrompt,
         messages: this.conversationHistory,
         tools: this.getEnabledTools(),
@@ -89,9 +89,9 @@ export class NAANOAgent {
 
         // Continue conversation with tool result
         response = await this.client.messages.create({
-          model: CHALE_CONFIG.model,
-          max_tokens: CHALE_CONFIG.maxTokens,
-          temperature: CHALE_CONFIG.temperature,
+          model: NAANO_CONFIG.model,
+          max_tokens: NAANO_CONFIG.maxTokens,
+          temperature: NAANO_CONFIG.temperature,
           system: systemPrompt,
           messages: this.conversationHistory,
           tools: this.getEnabledTools(),
@@ -145,9 +145,9 @@ export class NAANOAgent {
 
     // Stream the response
     const stream = this.client.messages.stream({
-      model: CHALE_CONFIG.model,
-      max_tokens: CHALE_CONFIG.maxTokens,
-      temperature: CHALE_CONFIG.temperature,
+      model: NAANO_CONFIG.model,
+      max_tokens: NAANO_CONFIG.maxTokens,
+      temperature: NAANO_CONFIG.temperature,
       system: systemPrompt,
       messages: this.conversationHistory,
       tools: this.getEnabledTools(),
@@ -209,15 +209,15 @@ export class NAANOAgent {
   private getEnabledTools(): Anthropic.Tool[] {
     const tools: Anthropic.Tool[] = [];
 
-    if (CHALE_CONFIG.tools.curriculumSearch.enabled) {
+    if (NAANO_CONFIG.tools.curriculumSearch.enabled) {
       tools.push(curriculumSearchTool);
     }
 
-    if (CHALE_CONFIG.tools.questionGenerator.enabled) {
+    if (NAANO_CONFIG.tools.questionGenerator.enabled) {
       tools.push(questionGeneratorTool);
     }
 
-    if (CHALE_CONFIG.tools.progressTracker.enabled) {
+    if (NAANO_CONFIG.tools.progressTracker.enabled) {
       tools.push(progressTrackerTool);
       tools.push(getStudentProgressTool);
     }
@@ -231,13 +231,13 @@ export class NAANOAgent {
   private getSystemPrompt(requestType: NAANORequest['type']): string {
     switch (requestType) {
       case 'generate_questions':
-        return `${CHALE_BASE_SYSTEM_PROMPT}\n\n${QUESTION_GENERATION_PROMPT}`;
+        return `${NAANO_BASE_SYSTEM_PROMPT}\n\n${QUESTION_GENERATION_PROMPT}`;
       case 'chat':
-        return `${CHALE_BASE_SYSTEM_PROMPT}\n\n${CHAT_TUTOR_PROMPT}`;
+        return `${NAANO_BASE_SYSTEM_PROMPT}\n\n${CHAT_TUTOR_PROMPT}`;
       case 'explain_concept':
-        return `${CHALE_BASE_SYSTEM_PROMPT}\n\n${CONCEPT_EXPLANATION_PROMPT}`;
+        return `${NAANO_BASE_SYSTEM_PROMPT}\n\n${CONCEPT_EXPLANATION_PROMPT}`;
       default:
-        return CHALE_BASE_SYSTEM_PROMPT;
+        return NAANO_BASE_SYSTEM_PROMPT;
     }
   }
 

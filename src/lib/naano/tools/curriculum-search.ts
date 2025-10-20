@@ -1,6 +1,6 @@
 import Anthropic from '@anthropic-ai/sdk';
 import { getCurriculumContext } from '../../milvus-client.js';
-import { CurriculumSearchToolSchema, type CurriculumSearchResult } from '../types';
+import { CurriculumSearchToolSchema, type CurriculumSearchResult } from '../types.js';
 
 /**
  * Curriculum Search Tool Definition

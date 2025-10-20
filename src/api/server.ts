@@ -6,8 +6,7 @@ import { errorHandler } from './middleware/error-handler.js';
 import { optionalAuth, logUserActivity } from './middleware/auth-middleware.js';
 import { cacheMiddleware, smartCache, getCacheStats, warmCache } from './middleware/cache.js';
 import { sanitizeInput } from './middleware/validation.js';
-// import naanoRoutes from './routes/naano-routes.js'; // OLD: Pica-based routes
-import naanoRoutes from './routes/naano-routes-new.js'; // NEW: Claude SDK routes
+import naanoRoutes from './routes/naano-routes.js';
 
 /**
  * NAANO AI API Server

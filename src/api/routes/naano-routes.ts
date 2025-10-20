@@ -1,77 +1,278 @@
 import express, { Request, Response } from 'express';
-import { openai } from '@ai-sdk/openai';
-import { convertToCoreMessages, streamText } from 'ai';
-import { Pica } from '@picahq/ai';
+import { getNAANOAgent, createNAANOAgent } from '../../lib/naano/index.js';
+import { NAANORequestSchema } from '../../lib/naano/types.js';
+import { z } from 'zod';
 
 const router = express.Router();
 
-// The official NAANO system prompt defining the agent's persona and goals.
-const CHALE_SYSTEM_PROMPT = `
-You are NAANO, a friendly and knowledgeable Ghanaian AI teaching assistant.
-Your purpose is to help primary school students in Ghana (grades 4-6) learn English and Mathematics.
+/**
+ * POST /api/naano/chat
+ * Chat with NAANO AI (streaming)
+ */
+router.post('/chat', async (req: Request, res: Response) => {
+  try {
+    const request = NAANORequestSchema.parse({
+      type: 'chat',
+      subject: req.body.subject || 'mathematics',
+      grade: req.body.grade || 5,
+      content: req.body.content || req.body.message,
+      context: req.body.context,
+    });
 
-**Your Persona:**
-- You are patient, encouraging, and use simple, clear language.
-- You should incorporate Ghanaian cultural contexts, names, and scenarios in your examples and questions to make learning relatable (e.g., using names like 'Kofi' and 'Ama', referencing local foods like 'kenkey', or scenarios in markets like 'Makola Market').
-- Your tone should be that of a supportive teacher.
+    const naano = getNAANOAgent();
 
-**Your Core Task:**
-- When given a module, topic, exercise, grade, and subject, you must generate exactly 5 multiple-choice questions that are curriculum-aligned and appropriate for the student's grade level.
-- Each question must have a single correct answer.
-- You will also be asked to perform other curriculum-related tasks, such as summarizing syllabus sections or explaining concepts.
+    // Set up Server-Sent Events for streaming
+    res.setHeader('Content-Type', 'text/event-stream');
+    res.setHeader('Cache-Control', 'no-cache');
+    res.setHeader('Connection', 'keep-alive');
+    res.setHeader('X-Accel-Buffering', 'no'); // Disable buffering for Nginx
 
-**Tool Usage:**
-- You have access to a set of tools to get information about the curriculum from a database.
-- Use these tools whenever you need information to fulfill the user's request.
-- You must only generate content that is directly related to the Ghanaian primary school curriculum.
-`;
+    let fullResponse = '';
 
-if (!process.env.PICA_SECRET_KEY) {
-  throw new Error('Missing PICA_SECRET_KEY environment variable');
-}
+    for await (const chunk of naano.processRequestStream(request)) {
+      fullResponse += chunk;
+      res.write(`data: ${JSON.stringify({ chunk, fullResponse })}\n\n`);
+    }
 
-// Initialize the Pica client
-const pica = new Pica(process.env.PICA_SECRET_KEY, {
-  connectors: ['*'], // Use all available connectors configured in the Pica dashboard
+    res.write('data: [DONE]\n\n');
+    res.end();
+  } catch (error: any) {
+    console.error('Error in chat endpoint:', error);
+
+    // Handle validation errors
+    if (error instanceof z.ZodError) {
+      res.status(400).json({
+        error: 'Validation error',
+        details: error.errors,
+      });
+      return;
+    }
+
+    res.status(500).json({
+      error: error.message || 'Internal server error',
+    });
+  }
 });
 
 /**
- * @route POST /api/naano
- * This is the single endpoint for interacting with the NAANO AI agent.
- * It uses the Vercel AI SDK to stream responses.
+ * POST /api/naano/generate-questions
+ * Generate curriculum-aligned questions
  */
-router.post('/', async (req: Request, res: Response) => {
-  const { messages } = req.body;
-
-  if (!messages) {
-    return res.status(400).json({ error: 'Missing `messages` in request body' });
-  }
-
+router.post('/generate-questions', async (req: Request, res: Response) => {
   try {
-    // Generate the master system prompt, combining our instructions with Pica's tool definitions.
-    const systemPrompt = await pica.generateSystemPrompt(CHALE_SYSTEM_PROMPT);
+    const { topic, subject, grade, difficulty, count } = req.body;
 
-    const result = await streamText({
-      model: openai('gpt-4o'), // Or your preferred model
-      system: systemPrompt,
-      messages: convertToCoreMessages(messages),
-      tools: {
-        ...pica.oneTool,
-      },
-      maxSteps: 15, // Increase steps to allow for more complex tool use chains
+    if (!topic || !subject || !grade) {
+      res.status(400).json({
+        error: 'Missing required fields: topic, subject, grade',
+      });
+      return;
+    }
+
+    const request = NAANORequestSchema.parse({
+      type: 'generate_questions',
+      subject,
+      grade: parseInt(grade),
+      content: `Generate ${count || 5} ${difficulty || 'medium'} multiple-choice questions about ${topic} for grade ${grade} ${subject}.
+
+IMPORTANT:
+1. First use the search_curriculum tool to get relevant curriculum content
+2. Then generate questions based on the curriculum
+3. Each question MUST include Ghanaian cultural context (names, locations, foods, currency)
+4. Return ONLY valid JSON in this exact format:
+
+{
+  "questions": [
+    {
+      "id": "q1",
+      "questionText": "...",
+      "options": ["A. ...", "B. ...", "C. ...", "D. ..."],
+      "correctAnswer": "A. ...",
+      "explanation": "...",
+      "difficulty": "${difficulty || 'medium'}",
+      "culturalContext": "Description of Ghanaian elements used"
+    }
+  ]
+}`,
+      context: { topic, difficulty },
     });
 
-    // Manually stream the response by iterating over the async stream.
-    res.setHeader('Content-Type', 'text/plain; charset=utf-8');
-    for await (const chunk of result.textStream) {
-      res.write(chunk);
-    }
-    res.end();
+    // Create a fresh NAANO instance for each question generation request
+    // This prevents conversation history pollution from previous requests
+    const naano = createNAANOAgent();
+    const response = await naano.processRequest(request);
 
+    // Try to parse questions from response
+    let questions;
+    try {
+      // Try to extract JSON from the response
+      const jsonMatch = response.content.toString().match(/\{[\s\S]*\}/);
+      if (jsonMatch) {
+        const parsed = JSON.parse(jsonMatch[0]);
+        questions = parsed.questions || parsed;
+      } else {
+        questions = JSON.parse(response.content.toString());
+      }
+    } catch (parseError) {
+      console.error('Error parsing questions:', parseError);
+      res.status(500).json({
+        error: 'Failed to parse generated questions',
+        rawResponse: response.content,
+      });
+      return;
+    }
+
+    res.json({
+      success: true,
+      questions: Array.isArray(questions) ? questions : [questions],
+      metadata: response.metadata,
+    });
   } catch (error: any) {
-    console.error('Error processing NAANO AI request:', error);
-    // Return a generic error response to the client
-    return res.status(500).json({ error: 'An unexpected error occurred.' });
+    console.error('Error generating questions:', error);
+
+    if (error instanceof z.ZodError) {
+      res.status(400).json({
+        error: 'Validation error',
+        details: error.errors,
+      });
+      return;
+    }
+
+    // Check if it's a Milvus-related error
+    if (error.message?.includes('STOPPED') ||
+        error.message?.includes('CURRICULUM_DATABASE_OFFLINE') ||
+        error.code === 16) {
+      res.status(503).json({
+        error: 'NAANO is currently offline',
+        message: 'The curriculum database is unavailable right now. Please try again in a few minutes.',
+        code: 'CURRICULUM_DATABASE_OFFLINE',
+      });
+      return;
+    }
+
+    res.status(500).json({
+      error: error.message || 'Internal server error',
+    });
+  }
+});
+
+/**
+ * POST /api/naano/explain
+ * Get explanation for a concept
+ */
+router.post('/explain', async (req: Request, res: Response) => {
+  try {
+    const { concept, subject, grade } = req.body;
+
+    if (!concept || !subject || !grade) {
+      res.status(400).json({
+        error: 'Missing required fields: concept, subject, grade',
+      });
+      return;
+    }
+
+    const request = NAANORequestSchema.parse({
+      type: 'explain_concept',
+      subject,
+      grade: parseInt(grade),
+      content: `Explain the concept of "${concept}" in a way that a grade ${grade} student can understand. Use Ghanaian examples and context to make it relatable.`,
+    });
+
+    const naano = getNAANOAgent();
+    const response = await naano.processRequest(request);
+
+    res.json({
+      success: true,
+      explanation: response.content,
+      metadata: response.metadata,
+    });
+  } catch (error: any) {
+    console.error('Error explaining concept:', error);
+
+    if (error instanceof z.ZodError) {
+      res.status(400).json({
+        error: 'Validation error',
+        details: error.errors,
+      });
+      return;
+    }
+
+    res.status(500).json({
+      error: error.message || 'Internal server error',
+    });
+  }
+});
+
+/**
+ * POST /api/naano/validate-answer
+ * Validate student answer with explanation
+ */
+router.post('/validate-answer', async (req: Request, res: Response) => {
+  try {
+    const { question, studentAnswer, correctAnswer, subject, grade } = req.body;
+
+    if (!question || !studentAnswer || !correctAnswer || !subject || !grade) {
+      res.status(400).json({
+        error: 'Missing required fields: question, studentAnswer, correctAnswer, subject, grade',
+      });
+      return;
+    }
+
+    const request = NAANORequestSchema.parse({
+      type: 'validate_answer',
+      subject,
+      grade: parseInt(grade),
+      content: `Question: ${question}
+
+Student's Answer: ${studentAnswer}
+Correct Answer: ${correctAnswer}
+
+Please provide encouraging feedback on the student's answer. If incorrect, explain why and help them understand the correct answer in a supportive way.`,
+    });
+
+    const naano = getNAANOAgent();
+    const response = await naano.processRequest(request);
+
+    res.json({
+      success: true,
+      validation: response.content,
+      metadata: response.metadata,
+    });
+  } catch (error: any) {
+    console.error('Error validating answer:', error);
+
+    if (error instanceof z.ZodError) {
+      res.status(400).json({
+        error: 'Validation error',
+        details: error.errors,
+      });
+      return;
+    }
+
+    res.status(500).json({
+      error: error.message || 'Internal server error',
+    });
+  }
+});
+
+/**
+ * POST /api/naano/reset
+ * Reset conversation history
+ */
+router.post('/reset', (req: Request, res: Response) => {
+  try {
+    const naano = getNAANOAgent();
+    naano.resetConversation();
+
+    res.json({
+      success: true,
+      message: 'Conversation history reset successfully',
+    });
+  } catch (error: any) {
+    console.error('Error resetting conversation:', error);
+    res.status(500).json({
+      error: error.message || 'Internal server error',
+    });
   }
 });
 
