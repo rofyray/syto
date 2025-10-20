@@ -21,8 +21,9 @@ import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import { Label } from '@/components/ui/label';
 import { Button } from '@/components/ui/button';
 import { AppLayout } from '@/components/layout/app-layout';
-import { Loader2, AlertCircle, ChevronLeft, ChevronRight, List, Trophy, CheckCircle2, XCircle, Sparkles } from 'lucide-react';
+import { Loader2, AlertCircle, ChevronLeft, ChevronRight, List, Trophy, CheckCircle2, XCircle, Sparkles, Star, Award, BarChart3, Home, X } from 'lucide-react';
 import { useToast } from '@/components/ui/toast';
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 
 export function QuestionsPage() {
   const [searchParams] = useSearchParams();
@@ -49,6 +50,7 @@ export function QuestionsPage() {
   const [questionStartTime, setQuestionStartTime] = useState<number>(Date.now());
   const [isNavExpanded, setIsNavExpanded] = useState(false);
   const [showFeedback, setShowFeedback] = useState(false);
+  const [showBreakdown, setShowBreakdown] = useState(false);
 
   useEffect(() => {
     if (topicName && exerciseName && subject && profile) {
@@ -250,19 +252,275 @@ export function QuestionsPage() {
 
 
   if (quizFinished) {
+    const percentage = Math.round((score / generatedQuestions.length) * 100);
+    const isMathematics = subject?.toLowerCase() === 'mathematics';
+    const primaryGlass = isMathematics ? 'liquid-glass-primary-math' : 'liquid-glass-primary-english';
+
+    // Determine performance message
+    let performanceMessage = '';
+    let celebrationEmoji = '';
+    if (percentage >= 80) {
+      performanceMessage = isMathematics ? 'Ayekoo! You are a Math Champion!' : 'Ayekoo! You are an English Master!';
+      celebrationEmoji = '🎉';
+    } else if (percentage >= 60) {
+      performanceMessage = 'Well done! Keep practicing!';
+      celebrationEmoji = '👏';
+    } else {
+      performanceMessage = 'Good effort! Practice makes perfect!';
+      celebrationEmoji = '💪';
+    }
+
     return (
       <AppLayout>
-        <div className="container mx-auto p-4 flex justify-center items-center min-h-screen">
-          <Card className="w-full max-w-2xl text-center">
-            <CardHeader>
-              <CardTitle>Quiz Complete!</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <p className="text-2xl font-bold">Your final score is:</p>
-              <p className="text-4xl font-bold my-4">{score} / {generatedQuestions.length}</p>
-              <Button onClick={() => window.history.back()}>Try Another Topic</Button>
-            </CardContent>
-          </Card>
+        <div className="container mx-auto p-4 flex justify-center items-center min-h-screen relative overflow-hidden">
+          {/* Animated background bubbles */}
+          <div className="absolute inset-0 pointer-events-none">
+            {[...Array(8)].map((_, i) => (
+              <div
+                key={i}
+                className={`absolute rounded-full ${
+                  isMathematics ? 'bg-amber-400/20' : 'bg-emerald-400/20'
+                } blur-xl animate-float`}
+                style={{
+                  width: `${Math.random() * 150 + 50}px`,
+                  height: `${Math.random() * 150 + 50}px`,
+                  left: `${Math.random() * 100}%`,
+                  top: `${Math.random() * 100}%`,
+                  animationDelay: `${i * 0.5}s`,
+                  animationDuration: `${Math.random() * 10 + 10}s`,
+                }}
+              />
+            ))}
+          </div>
+
+          <div className="w-full max-w-3xl relative z-10">
+            {/* Completion Badge */}
+            <div className="flex justify-center mb-6 animate-bounce">
+              <div className={`${primaryGlass} px-8 py-3 rounded-full border ${
+                isMathematics ? 'border-amber-300/30 shadow-xl shadow-amber-500/30' : 'border-emerald-300/30 shadow-xl shadow-emerald-500/30'
+              } flex items-center gap-3`}>
+                <Award className="h-6 w-6 text-white" />
+                <span className="text-white font-bold text-xl">QUIZ COMPLETE {celebrationEmoji}</span>
+                <Award className="h-6 w-6 text-white" />
+              </div>
+            </div>
+
+            {/* Main Score Card */}
+            <Card className="liquid-glass shadow-2xl border border-white/20 overflow-hidden">
+              <CardContent className="p-12">
+                <h2 className="text-5xl font-bold text-center mb-8 love-ya-like-a-sister-regular">
+                  You Scored
+                </h2>
+
+                {/* Score Circle with decorative bubbles */}
+                <div className="flex justify-center mb-8 relative">
+                  {/* Decorative bubbles around the circle */}
+                  {[...Array(6)].map((_, i) => {
+                    const angle = (i * 60 * Math.PI) / 180;
+                    const radius = 160;
+                    const x = Math.cos(angle) * radius;
+                    const y = Math.sin(angle) * radius;
+                    return (
+                      <div
+                        key={i}
+                        className={`absolute w-3 h-3 rounded-full ${
+                          isMathematics ? 'bg-amber-400' : 'bg-emerald-400'
+                        } animate-pulse`}
+                        style={{
+                          left: '50%',
+                          top: '50%',
+                          transform: `translate(calc(-50% + ${x}px), calc(-50% + ${y}px))`,
+                          animationDelay: `${i * 0.2}s`,
+                        }}
+                      />
+                    );
+                  })}
+
+                  {/* Score Circle */}
+                  <div className={`relative w-64 h-64 rounded-full border-8 ${
+                    isMathematics
+                      ? 'border-amber-400/50 shadow-2xl shadow-amber-500/40'
+                      : 'border-emerald-400/50 shadow-2xl shadow-emerald-500/40'
+                  } liquid-glass flex flex-col items-center justify-center`}>
+                    <div className="text-center">
+                      <div className={`text-7xl font-bold ${
+                        isMathematics ? 'text-amber-400' : 'text-emerald-400'
+                      } mb-2 love-ya-like-a-sister-regular animate-scale-in`}>
+                        {percentage}%
+                      </div>
+                      <div className="text-gray-400 text-lg font-semibold">
+                        YOUR SCORE
+                      </div>
+                      <div className="text-white/60 text-sm mt-2">
+                        {score} out of {generatedQuestions.length}
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Performance Message */}
+                <div className="text-center mb-8">
+                  <p className="text-2xl font-bold mb-2">{performanceMessage}</p>
+                  <p className="text-gray-400">
+                    {topicName && exerciseName && (
+                      <>Topic: {topicName} • Exercise: {exerciseName}</>
+                    )}
+                  </p>
+                </div>
+
+                {/* Action Buttons */}
+                <div className="flex gap-4 justify-center flex-wrap">
+                  <Button
+                    onClick={() => setShowBreakdown(true)}
+                    className={`${primaryGlass} px-8 py-6 text-lg font-bold rounded-xl shadow-lg transition-all duration-200 border ${
+                      isMathematics
+                        ? 'border-amber-300/30 hover:shadow-2xl hover:shadow-amber-500/30'
+                        : 'border-emerald-300/30 hover:shadow-2xl hover:shadow-emerald-500/30'
+                    } hover:scale-105 flex items-center gap-2`}
+                  >
+                    <BarChart3 className="h-5 w-5" />
+                    See Breakdown
+                  </Button>
+
+                  <Button
+                    onClick={() => navigate(`/${subject?.toLowerCase()}`)}
+                    className="liquid-glass-nav-button px-8 py-6 text-lg font-bold rounded-xl shadow-lg transition-all duration-200 border border-white/10 hover:border-white/30 hover:shadow-2xl text-white flex items-center gap-2"
+                  >
+                    <Home className="h-5 w-5" />
+                    Back to {subject}
+                  </Button>
+                </div>
+              </CardContent>
+            </Card>
+
+            {/* Stars decoration */}
+            <div className="flex justify-center gap-4 mt-6">
+              {[...Array(5)].map((_, i) => (
+                <Star
+                  key={i}
+                  className={`h-8 w-8 ${
+                    i < Math.ceil((percentage / 100) * 5)
+                      ? isMathematics
+                        ? 'text-amber-400 fill-amber-400'
+                        : 'text-emerald-400 fill-emerald-400'
+                      : 'text-gray-600'
+                  } animate-pulse`}
+                  style={{ animationDelay: `${i * 0.1}s` }}
+                />
+              ))}
+            </div>
+          </div>
+
+          {/* Breakdown Modal */}
+          <Dialog open={showBreakdown} onOpenChange={setShowBreakdown}>
+            <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto liquid-glass border border-white/20">
+              <DialogHeader>
+                <DialogTitle className="text-2xl font-bold flex items-center gap-2">
+                  <BarChart3 className={isMathematics ? 'text-amber-400' : 'text-emerald-400'} />
+                  Quiz Breakdown
+                </DialogTitle>
+              </DialogHeader>
+
+              {/* Summary Stats */}
+              <div className="grid grid-cols-3 gap-4 mb-6">
+                <div className="liquid-glass-option p-4 rounded-lg border border-white/10 text-center">
+                  <div className="text-3xl font-bold text-emerald-400">{score}</div>
+                  <div className="text-sm text-gray-400 mt-1">Correct</div>
+                </div>
+                <div className="liquid-glass-option p-4 rounded-lg border border-white/10 text-center">
+                  <div className="text-3xl font-bold text-red-400">{generatedQuestions.length - score}</div>
+                  <div className="text-sm text-gray-400 mt-1">Incorrect</div>
+                </div>
+                <div className="liquid-glass-option p-4 rounded-lg border border-white/10 text-center">
+                  <div className={`text-3xl font-bold ${isMathematics ? 'text-amber-400' : 'text-emerald-400'}`}>
+                    {percentage}%
+                  </div>
+                  <div className="text-sm text-gray-400 mt-1">Score</div>
+                </div>
+              </div>
+
+              {/* Progress Bar */}
+              <div className="mb-6">
+                <div className="h-6 rounded-full overflow-hidden liquid-glass-option border border-white/10">
+                  <div
+                    className={`h-full transition-all duration-1000 ${
+                      isMathematics
+                        ? 'bg-gradient-to-r from-amber-500 to-amber-600'
+                        : 'bg-gradient-to-r from-emerald-500 to-emerald-600'
+                    }`}
+                    style={{ width: `${percentage}%` }}
+                  />
+                </div>
+              </div>
+
+              {/* Question by Question Breakdown */}
+              <div className="space-y-4">
+                <h3 className="text-lg font-bold mb-3">Question by Question Review</h3>
+                {generatedQuestions.map((question, index) => {
+                  const userAnswer = selectedAnswers[index];
+                  const isCorrect = userAnswer === question.correct_answer;
+
+                  return (
+                    <div
+                      key={index}
+                      className={`liquid-glass-option p-4 rounded-lg border transition-all ${
+                        isCorrect
+                          ? 'border-emerald-400/50'
+                          : 'border-red-400/50'
+                      }`}
+                    >
+                      <div className="flex items-start gap-3">
+                        <div className={`flex-shrink-0 w-8 h-8 rounded-full flex items-center justify-center ${
+                          isCorrect ? 'bg-emerald-500' : 'bg-red-500'
+                        }`}>
+                          {isCorrect ? (
+                            <CheckCircle2 className="h-5 w-5 text-white" />
+                          ) : (
+                            <XCircle className="h-5 w-5 text-white" />
+                          )}
+                        </div>
+                        <div className="flex-1">
+                          <div className="font-semibold mb-2">
+                            Question {index + 1}: {question.question_text}
+                          </div>
+                          <div className="text-sm space-y-1">
+                            <div className="flex items-center gap-2">
+                              <span className="text-gray-400">Your answer:</span>
+                              <span className={isCorrect ? 'text-emerald-400 font-semibold' : 'text-red-400 font-semibold'}>
+                                {userAnswer || 'Not answered'}
+                              </span>
+                            </div>
+                            {!isCorrect && (
+                              <div className="flex items-center gap-2">
+                                <span className="text-gray-400">Correct answer:</span>
+                                <span className="text-emerald-400 font-semibold">
+                                  {question.correct_answer}
+                                </span>
+                              </div>
+                            )}
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+
+              {/* Close Button */}
+              <div className="flex justify-center mt-6">
+                <Button
+                  onClick={() => setShowBreakdown(false)}
+                  className={`${primaryGlass} px-6 py-3 rounded-lg border ${
+                    isMathematics
+                      ? 'border-amber-300/30 hover:shadow-xl hover:shadow-amber-500/30'
+                      : 'border-emerald-300/30 hover:shadow-xl hover:shadow-emerald-500/30'
+                  } text-white font-semibold`}
+                >
+                  Close Breakdown
+                </Button>
+              </div>
+            </DialogContent>
+          </Dialog>
         </div>
       </AppLayout>
     );
@@ -425,9 +683,9 @@ export function QuestionsPage() {
 
                 <button
                   onClick={handleNextQuestion}
-                  disabled={currentQuestionIndex === generatedQuestions.length - 1}
+                  disabled={currentQuestionIndex === generatedQuestions.length - 1 && !isAnswerChecked}
                   className={`flex items-center gap-2 px-4 py-2 rounded-lg font-semibold transition-all border ${
-                    currentQuestionIndex === generatedQuestions.length - 1
+                    currentQuestionIndex === generatedQuestions.length - 1 && !isAnswerChecked
                       ? 'text-gray-500 cursor-not-allowed border-white/5 liquid-glass-disabled'
                       : `text-white ${primaryGlass} ${
                           isMathematics
@@ -436,7 +694,7 @@ export function QuestionsPage() {
                         }`
                   }`}
                 >
-                  Next
+                  {currentQuestionIndex === generatedQuestions.length - 1 ? 'Finish Quiz' : 'Next'}
                   <ChevronRight className="h-5 w-5" />
                 </button>
               </div>
@@ -469,9 +727,9 @@ export function QuestionsPage() {
 
                   <button
                     onClick={handleNextQuestion}
-                    disabled={currentQuestionIndex === generatedQuestions.length - 1}
+                    disabled={currentQuestionIndex === generatedQuestions.length - 1 && !isAnswerChecked}
                     className={`flex items-center gap-2 px-4 py-2 rounded-lg font-semibold transition-all border ${
-                      currentQuestionIndex === generatedQuestions.length - 1
+                      currentQuestionIndex === generatedQuestions.length - 1 && !isAnswerChecked
                         ? 'text-gray-500 cursor-not-allowed border-white/5 liquid-glass-disabled'
                         : `text-white ${primaryGlass} ${
                             isMathematics
@@ -480,7 +738,7 @@ export function QuestionsPage() {
                           }`
                     }`}
                   >
-                    Next
+                    {currentQuestionIndex === generatedQuestions.length - 1 ? 'Finish Quiz' : 'Next'}
                     <ChevronRight className="h-5 w-5" />
                   </button>
                 </div>
