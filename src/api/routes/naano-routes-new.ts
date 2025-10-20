@@ -1,5 +1,5 @@
 import express, { Request, Response } from 'express';
-import { getNAANOAgent } from '../../lib/naano';
+import { getNAANOAgent, createNAANOAgent } from '../../lib/naano';
 import { NAANORequestSchema } from '../../lib/naano/types';
 import { z } from 'zod';
 
@@ -97,7 +97,9 @@ IMPORTANT:
       context: { topic, difficulty },
     });
 
-    const naano = getNAANOAgent();
+    // Create a fresh NAANO instance for each question generation request
+    // This prevents conversation history pollution from previous requests
+    const naano = createNAANOAgent();
     const response = await naano.processRequest(request);
 
     // Try to parse questions from response
@@ -132,6 +134,18 @@ IMPORTANT:
       res.status(400).json({
         error: 'Validation error',
         details: error.errors,
+      });
+      return;
+    }
+
+    // Check if it's a Milvus-related error
+    if (error.message?.includes('STOPPED') ||
+        error.message?.includes('CURRICULUM_DATABASE_OFFLINE') ||
+        error.code === 16) {
+      res.status(503).json({
+        error: 'NAANO is currently offline',
+        message: 'The curriculum database is unavailable right now. Please try again in a few minutes.',
+        code: 'CURRICULUM_DATABASE_OFFLINE',
       });
       return;
     }

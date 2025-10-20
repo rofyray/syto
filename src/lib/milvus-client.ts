@@ -59,12 +59,23 @@ export async function getMilvusClient(): Promise<MilvusClient> {
       throw new Error('MILVUS_URI and MILVUS_TOKEN environment variables are required');
     }
 
-    milvusClient = new MilvusClient({
-      address: process.env.MILVUS_URI,
-      token: process.env.MILVUS_TOKEN,
-    });
+    try {
+      milvusClient = new MilvusClient({
+        address: process.env.MILVUS_URI,
+        token: process.env.MILVUS_TOKEN,
+      });
 
-    console.log('✅ Connected to Milvus/Zilliz Cloud successfully');
+      console.log('✅ Connected to Milvus/Zilliz Cloud successfully');
+    } catch (error: any) {
+      console.error('❌ Failed to connect to Milvus/Zilliz Cloud:', error.message);
+
+      if (error.message?.includes('STOPPED') || error.code === 16) {
+        console.warn('⚠️  Your Zilliz Cloud cluster is stopped.');
+        console.warn('   Visit https://cloud.zilliz.com/ to start your cluster.');
+      }
+
+      throw error;
+    }
   }
 
   return milvusClient;
@@ -164,10 +175,10 @@ export async function searchCurriculumContent(
   grade?: number,
   limit: number = 5
 ) {
-  const client = await getMilvusClient();
-  const collectionName = subject === 'mathematics' ? MATH_COLLECTION : READING_COLLECTION;
-
   try {
+    const client = await getMilvusClient();
+    const collectionName = subject === 'mathematics' ? MATH_COLLECTION : READING_COLLECTION;
+
     // Generate embedding for the query
     const queryVector = await generateEmbedding(query);
 
@@ -205,8 +216,15 @@ export async function searchCurriculumContent(
     }
 
     return [];
-  } catch (error) {
+  } catch (error: any) {
     console.error(`Error searching ${subject} curriculum:`, error);
+
+    // Check if it's a cluster stopped error
+    if (error.message?.includes('STOPPED') || error.code === 16) {
+      console.warn('⚠️  Milvus cluster is currently stopped. Curriculum search unavailable.');
+      console.warn('   To use curriculum search, please start your Zilliz Cloud cluster.');
+    }
+
     return [];
   }
 }
@@ -223,7 +241,7 @@ export async function getCurriculumContext(
     const results = await searchCurriculumContent(topic, subject, grade, 3);
 
     if (results.length === 0) {
-      return `No specific curriculum content found for ${subject} grade ${grade} topic: ${topic}`;
+      throw new Error('No curriculum content found. Curriculum database may be unavailable.');
     }
 
     const contextParts = results.map(
@@ -232,9 +250,15 @@ export async function getCurriculumContext(
     );
 
     return `Curriculum context for ${subject} grade ${grade}:\n${contextParts.join('\n\n')}`;
-  } catch (error) {
+  } catch (error: any) {
     console.error('Error getting curriculum context:', error);
-    return `Error retrieving curriculum context for ${subject} grade ${grade}`;
+
+    // Check if it's a cluster stopped error and throw a specific error
+    if (error.message?.includes('STOPPED') || error.code === 16) {
+      throw new Error('CURRICULUM_DATABASE_OFFLINE');
+    }
+
+    throw error;
   }
 }
 

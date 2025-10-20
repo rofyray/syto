@@ -2,6 +2,99 @@
 @tailwind components;
 @tailwind utilities;
 
+/* Liquid Glass Effect Styles for Quiz */
+@layer components {
+  .liquid-glass {
+    background-color: rgba(255, 255, 255, 0.1);
+    backdrop-filter: blur(20px);
+    -webkit-backdrop-filter: blur(20px);
+  }
+
+  .dark .liquid-glass {
+    background-color: rgba(255, 255, 255, 0.05);
+  }
+
+  .liquid-glass-header {
+    background: linear-gradient(to right, rgba(6, 95, 70, 0.1), rgba(217, 119, 6, 0.1));
+    backdrop-filter: blur(20px);
+    -webkit-backdrop-filter: blur(20px);
+  }
+
+  .dark .liquid-glass-header {
+    background: linear-gradient(to right, rgba(16, 185, 129, 0.1), rgba(251, 191, 36, 0.1));
+  }
+
+  .liquid-glass-accent {
+    background: linear-gradient(to right, rgba(245, 158, 11, 0.9), rgba(251, 191, 36, 0.9));
+    backdrop-filter: blur(10px);
+    -webkit-backdrop-filter: blur(10px);
+  }
+
+  .liquid-glass-primary {
+    background: linear-gradient(to right, rgba(16, 185, 129, 0.8), rgba(6, 95, 70, 0.8));
+    backdrop-filter: blur(10px);
+    -webkit-backdrop-filter: blur(10px);
+  }
+
+  /* Mathematics/Gold Theme */
+  .liquid-glass-primary-math {
+    background: linear-gradient(to right, rgba(251, 191, 36, 0.8), rgba(217, 119, 6, 0.8));
+    backdrop-filter: blur(10px);
+    -webkit-backdrop-filter: blur(10px);
+  }
+
+  /* English/Green Theme */
+  .liquid-glass-primary-english {
+    background: linear-gradient(to right, rgba(16, 185, 129, 0.8), rgba(6, 95, 70, 0.8));
+    backdrop-filter: blur(10px);
+    -webkit-backdrop-filter: blur(10px);
+  }
+
+  .liquid-glass-success {
+    background: linear-gradient(to right, rgba(34, 197, 94, 0.8), rgba(16, 185, 129, 0.8));
+    backdrop-filter: blur(10px);
+    -webkit-backdrop-filter: blur(10px);
+  }
+
+  .liquid-glass-error {
+    background: linear-gradient(to right, rgba(239, 68, 68, 0.8), rgba(244, 63, 94, 0.8));
+    backdrop-filter: blur(10px);
+    -webkit-backdrop-filter: blur(10px);
+  }
+
+  .liquid-glass-option {
+    background-color: rgba(255, 255, 255, 0.05);
+    backdrop-filter: blur(10px);
+    -webkit-backdrop-filter: blur(10px);
+  }
+
+  .dark .liquid-glass-option {
+    background-color: rgba(255, 255, 255, 0.03);
+  }
+
+  .liquid-glass-disabled {
+    background-color: rgba(107, 114, 128, 0.3);
+    backdrop-filter: blur(10px);
+    -webkit-backdrop-filter: blur(10px);
+  }
+
+  .liquid-glass-nav {
+    background-color: rgba(17, 24, 39, 0.9);
+    backdrop-filter: blur(20px);
+    -webkit-backdrop-filter: blur(20px);
+  }
+
+  .dark .liquid-glass-nav {
+    background-color: rgba(3, 7, 18, 0.9);
+  }
+
+  .liquid-glass-nav-button {
+    background-color: rgba(31, 41, 55, 0.8);
+    backdrop-filter: blur(10px);
+    -webkit-backdrop-filter: blur(10px);
+  }
+}
+
 @layer base {
   :root {
     --background: 0 0% 96%;

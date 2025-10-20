@@ -5,8 +5,14 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Progress } from "@/components/ui/progress";
 import { Button } from "@/components/ui/button";
 import { useAuthStore } from "@/stores/auth-store";
-import { getUserProgressByUserId, getModulesByGradeAndSubject } from "@/lib/supabase";
-import { calculateCompletion, getTimeBasedGreeting } from "@/lib/utils";
+import {
+  getUserProgressByUserId,
+  getModulesByGradeAndSubject,
+  getRecentModules,
+  getSubjectCompletion,
+  type RecentModule as DBRecentModule
+} from "@/lib/supabase";
+import { getTimeBasedGreeting } from "@/lib/utils";
 import { useNavigate } from "react-router-dom";
 
 interface RecentModule {
@@ -21,77 +27,101 @@ export function DashboardPage() {
   const { user, profile } = useAuthStore();
   const [englishProgress, setEnglishProgress] = useState(0);
   const [mathProgress, setMathProgress] = useState(0);
+  const [englishStats, setEnglishStats] = useState({ completed: 0, total: 0 });
+  const [mathStats, setMathStats] = useState({ completed: 0, total: 0 });
   const [recentModules, setRecentModules] = useState<RecentModule[]>([]);
   const [loading, setLoading] = useState(true);
   const navigate = useNavigate();
 
   useEffect(() => {
+    let mounted = true;
+
     const fetchData = async () => {
+      // No user, stop loading
       if (!user) {
-        setLoading(false);
+        if (mounted) setLoading(false);
         return;
       }
 
-      // If user exists but no profile yet, wait a bit for profile to load
+      // Wait for profile - Supabase will handle session validity
       if (!profile) {
-        const timeout = setTimeout(() => {
-          setLoading(false);
-        }, 3000); // Max 3 seconds wait for profile
-        return () => clearTimeout(timeout);
+        // Just keep loading, profile will come from auth state listener
+        return;
       }
 
+      // Profile loaded, fetch dashboard data
+      console.log('Fetching dashboard data...');
+
       try {
-        // Fetch user progress
+        // Calculate subject completion using the new accurate method
+        const englishCompletion = await getSubjectCompletion(user.id, 'english', profile.grade_level);
+        const mathCompletion = await getSubjectCompletion(user.id, 'mathematics', profile.grade_level);
+
+        if (!mounted) return;
+
+        setEnglishProgress(englishCompletion.percentage);
+        setMathProgress(mathCompletion.percentage);
+        setEnglishStats({ completed: englishCompletion.completedModules, total: englishCompletion.totalModules });
+        setMathStats({ completed: mathCompletion.completedModules, total: mathCompletion.totalModules });
+
+        // Get recent modules using the new database view
+        const dbRecentModules = await getRecentModules(user.id, 3);
+
+        // Get user progress for module-level progress calculation
         const progress = await getUserProgressByUserId(user.id);
 
-        // Calculate subject progress
-        const englishCompleted = progress.filter(p => p.module_id.startsWith('eng') && p.completed).length;
-        const mathCompleted = progress.filter(p => p.module_id.startsWith('math') && p.completed).length;
+        if (!mounted) return;
 
-        // Fetch modules to get total count
-        const englishModules = await getModulesByGradeAndSubject(profile.grade_level, 'english');
-        const mathModules = await getModulesByGradeAndSubject(profile.grade_level, 'mathematics');
+        // Transform to local format with progress calculation
+        const recentModulesWithProgress = dbRecentModules.map(module => {
+          const moduleProgress = progress.filter(p => p.module_id === module.module_id);
 
-        // Calculate percentages
-        setEnglishProgress(calculateCompletion(englishCompleted, englishModules.length || 1));
-        setMathProgress(calculateCompletion(mathCompleted, mathModules.length || 1));
+          // Get unique completed topics for this module
+          const completedTopicIds = new Set(
+            moduleProgress
+              .filter(p => p.topic_id && p.completed)
+              .map(p => p.topic_id)
+          );
 
-        // Get recent modules with progress
-        const allModules = [...englishModules, ...mathModules];
-        const recentModulesWithProgress = allModules
-          .map(module => {
-            const moduleProgress = progress.filter(p => p.module_id === module.id);
-            const completedTopics = moduleProgress.filter(p => p.completed).length;
-            const totalTopics = moduleProgress.length || 1;
-            const progressPercentage = Math.round((completedTopics / totalTopics) * 100);
+          // Get unique total topics attempted for this module
+          const totalTopicIds = new Set(
+            moduleProgress
+              .filter(p => p.topic_id)
+              .map(p => p.topic_id)
+          );
 
-            // Get the most recent access date
-            const lastAccessed = moduleProgress.length > 0
-              ? Math.max(...moduleProgress.map(p => new Date(p.created_at || '').getTime()))
-              : 0;
+          const progressPercentage = totalTopicIds.size > 0
+            ? Math.round((completedTopicIds.size / totalTopicIds.size) * 100)
+            : 0;
 
-            return {
-              id: module.id,
-              title: module.title,
-              subject: module.subject,
-              progress: progressPercentage,
-              lastAccessed: new Date(lastAccessed).toISOString()
-            };
-          })
-          .filter(module => module.progress > 0) // Only show modules with some progress
-          .sort((a, b) => new Date(b.lastAccessed).getTime() - new Date(a.lastAccessed).getTime())
-          .slice(0, 3); // Get top 3 recent modules
+          return {
+            id: module.module_id,
+            title: module.title,
+            subject: module.subject,
+            progress: progressPercentage,
+            lastAccessed: module.last_accessed_at
+          };
+        });
 
         setRecentModules(recentModulesWithProgress);
-      } catch (error) {
+      } catch (error: any) {
         console.error("Error fetching dashboard data:", error);
+        // Just log errors, don't show error UI - let Supabase handle auth
+        // If there's a real auth issue, Supabase will trigger auth state change
       } finally {
-        setLoading(false);
+        if (mounted) {
+          setLoading(false);
+        }
       }
     };
 
     fetchData();
-  }, [user, profile]);
+
+    // Cleanup function
+    return () => {
+      mounted = false;
+    };
+  }, [user, profile?.id]); // Only re-run if user changes or profile ID changes
 
   if (loading) {
     return (
@@ -131,7 +161,9 @@ export function DashboardPage() {
                 </div>
                 <h3 className="text-xl font-bold">English Language</h3>
               </div>
-              <p className="text-sm text-muted-foreground">Your progress in English modules</p>
+              <p className="text-sm text-muted-foreground">
+                {englishStats.completed} of {englishStats.total} modules completed
+              </p>
             </div>
             <div className="space-y-3 mt-4">
               <div className="bg-ghana-green/10 dark:bg-ghana-green/20 border-2 border-ghana-green/30 rounded-xl p-4 flex items-center justify-between">
@@ -157,7 +189,9 @@ export function DashboardPage() {
                 </div>
                 <h3 className="text-xl font-bold">Mathematics</h3>
               </div>
-              <p className="text-sm text-muted-foreground">Your progress in Mathematics modules</p>
+              <p className="text-sm text-muted-foreground">
+                {mathStats.completed} of {mathStats.total} modules completed
+              </p>
             </div>
             <div className="space-y-3 mt-4">
               <div className="bg-ghana-gold/10 dark:bg-ghana-gold/20 border-2 border-ghana-gold/30 rounded-xl p-4 flex items-center justify-between">

@@ -37,57 +37,18 @@ export class NAANOAgent {
     const startTime = Date.now();
     const toolsUsed: string[] = [];
 
-    // Customize system prompt based on request type
-    const systemPrompt = this.getSystemPrompt(request.type);
+    try {
+      // Customize system prompt based on request type
+      const systemPrompt = this.getSystemPrompt(request.type);
 
-    // Add user message to history
-    this.conversationHistory.push({
-      role: 'user',
-      content: request.content,
-    });
-
-    // Create message with tools
-    let response = await this.client.messages.create({
-      model: CHALE_CONFIG.model,
-      max_tokens: CHALE_CONFIG.maxTokens,
-      temperature: CHALE_CONFIG.temperature,
-      system: systemPrompt,
-      messages: this.conversationHistory,
-      tools: this.getEnabledTools(),
-    });
-
-    // Handle tool calls in a loop
-    while (response.stop_reason === 'tool_use') {
-      const toolUseBlock = response.content.find(
-        (block) => block.type === 'tool_use'
-      ) as AnthropicToolUseBlock | undefined;
-
-      if (!toolUseBlock) break;
-
-      toolsUsed.push(toolUseBlock.name);
-
-      // Execute tool
-      const toolResult = await this.executeTool(toolUseBlock.name, toolUseBlock.input);
-
-      // Add assistant response and tool result to history
-      this.conversationHistory.push({
-        role: 'assistant',
-        content: response.content,
-      });
-
+      // Add user message to history
       this.conversationHistory.push({
         role: 'user',
-        content: [
-          {
-            type: 'tool_result',
-            tool_use_id: toolUseBlock.id,
-            content: toolResult,
-          },
-        ],
+        content: request.content,
       });
 
-      // Continue conversation with tool result
-      response = await this.client.messages.create({
+      // Create message with tools
+      let response = await this.client.messages.create({
         model: CHALE_CONFIG.model,
         max_tokens: CHALE_CONFIG.maxTokens,
         temperature: CHALE_CONFIG.temperature,
@@ -95,32 +56,78 @@ export class NAANOAgent {
         messages: this.conversationHistory,
         tools: this.getEnabledTools(),
       });
+
+      // Handle tool calls in a loop
+      while (response.stop_reason === 'tool_use') {
+        const toolUseBlock = response.content.find(
+          (block) => block.type === 'tool_use'
+        ) as AnthropicToolUseBlock | undefined;
+
+        if (!toolUseBlock) break;
+
+        toolsUsed.push(toolUseBlock.name);
+
+        // Execute tool
+        const toolResult = await this.executeTool(toolUseBlock.name, toolUseBlock.input);
+
+        // Add assistant response and tool result to history
+        this.conversationHistory.push({
+          role: 'assistant',
+          content: response.content,
+        });
+
+        this.conversationHistory.push({
+          role: 'user',
+          content: [
+            {
+              type: 'tool_result',
+              tool_use_id: toolUseBlock.id,
+              content: toolResult,
+            },
+          ],
+        });
+
+        // Continue conversation with tool result
+        response = await this.client.messages.create({
+          model: CHALE_CONFIG.model,
+          max_tokens: CHALE_CONFIG.maxTokens,
+          temperature: CHALE_CONFIG.temperature,
+          system: systemPrompt,
+          messages: this.conversationHistory,
+          tools: this.getEnabledTools(),
+        });
+      }
+
+      // Extract final text response
+      const textBlock = response.content.find(
+        (block) => block.type === 'text'
+      ) as AnthropicTextBlock | undefined;
+
+      const processingTime = Date.now() - startTime;
+
+      // Add assistant's final response to history
+      this.conversationHistory.push({
+        role: 'assistant',
+        content: response.content,
+      });
+
+      return {
+        id: response.id,
+        type: this.mapRequestTypeToResponseType(request.type),
+        content: textBlock?.text || '',
+        metadata: {
+          modelUsed: response.model,
+          tokensUsed: response.usage.input_tokens + response.usage.output_tokens,
+          processingTime,
+          toolsUsed,
+        },
+      };
+    } catch (error) {
+      // If an error occurs, reset conversation to avoid corrupted state
+      console.error('Error in processRequest, resetting conversation:', error);
+      this.resetConversation();
+      throw error;
     }
-
-    // Extract final text response
-    const textBlock = response.content.find(
-      (block) => block.type === 'text'
-    ) as AnthropicTextBlock | undefined;
-
-    const processingTime = Date.now() - startTime;
-
-    // Add assistant's final response to history
-    this.conversationHistory.push({
-      role: 'assistant',
-      content: response.content,
-    });
-
-    return {
-      id: response.id,
-      type: this.mapRequestTypeToResponseType(request.type),
-      content: textBlock?.text || '',
-      metadata: {
-        modelUsed: response.model,
-        tokensUsed: response.usage.input_tokens + response.usage.output_tokens,
-        processingTime,
-        toolsUsed,
-      },
-    };
   }
 
   /**

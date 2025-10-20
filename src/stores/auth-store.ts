@@ -112,19 +112,35 @@ export const useAuthStore = create<AuthState>((set, get) => ({
     // Set up auth state change listener AFTER initial session check
     const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, session) => {
       console.log('Auth state changed:', event, session?.user?.email || 'no user');
-      
+
       const user = session?.user || null;
-      
+
+      // Handle sign out events
+      if (event === 'SIGNED_OUT') {
+        console.log('User signed out, clearing state');
+        set({ user: null, profile: null });
+        return;
+      }
+
+      // Handle token refresh failures
+      if (event === 'TOKEN_REFRESHED' && !session) {
+        console.warn('Token refresh failed, session expired');
+        set({ user: null, profile: null });
+        return;
+      }
+
       // Update user state without blocking
       set({ user });
-      
+
       if (user) {
-        // Fetch or create user profile
+        // Fetch or create user profile - let it take as long as needed
         try {
           const profile = await fetchOrCreateProfile(user.id, user.email || '');
           set({ profile });
         } catch (error) {
           console.error('Error fetching profile after auth change:', error);
+          // Set profile to null but keep user logged in
+          // Supabase will handle session expiry automatically
           set({ profile: null });
         }
       } else {
@@ -211,13 +227,29 @@ export const useAuthStore = create<AuthState>((set, get) => ({
     try {
       set({ loading: true, error: null });
       console.log('Logging out user');
-      await supabase.auth.signOut();
-      set({ user: null, profile: null });
+
+      // Sign out with timeout to prevent hanging
+      const signOutPromise = supabase.auth.signOut();
+      const timeoutPromise = new Promise((_, reject) =>
+        setTimeout(() => reject(new Error('Logout timeout')), 5000)
+      );
+
+      try {
+        await Promise.race([signOutPromise, timeoutPromise]);
+      } catch (error) {
+        console.warn('Logout may have timed out, clearing local state anyway:', error);
+      }
+
+      // Always clear local state regardless of API response
+      set({ user: null, profile: null, loading: false });
+
+      // Force redirect to login page
+      window.location.href = '/login';
     } catch (error: any) {
       console.error('Logout error:', error);
-      set({ error: error.message });
-    } finally {
-      set({ loading: false });
+      // Even on error, clear state and redirect
+      set({ user: null, profile: null, error: error.message, loading: false });
+      window.location.href = '/login';
     }
   },
   

@@ -64,6 +64,8 @@ export async function handleCurriculumSearch(input: unknown): Promise<string> {
     return JSON.stringify(result, null, 2);
   } catch (error) {
     console.error('Error in curriculum search:', error);
+
+    // Throw the error so it propagates up to the API layer
     return JSON.stringify({
       success: false,
       error: error instanceof Error ? error.message : 'Unknown error occurred',
