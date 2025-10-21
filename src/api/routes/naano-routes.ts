@@ -256,6 +256,70 @@ Please provide encouraging feedback on the student's answer. If incorrect, expla
 });
 
 /**
+ * POST /api/naano/explain-answer
+ * Explain why an answer is correct (streaming)
+ */
+router.post('/explain-answer', async (req: Request, res: Response) => {
+  try {
+    const { question, correctAnswer, options, subject, grade } = req.body;
+
+    if (!question || !correctAnswer || !subject || !grade) {
+      res.status(400).json({
+        error: 'Missing required fields: question, correctAnswer, subject, grade',
+      });
+      return;
+    }
+
+    const optionsText = options ? `\nOptions: ${options.join(', ')}` : '';
+
+    const request = NAANORequestSchema.parse({
+      type: 'chat',
+      subject,
+      grade: parseInt(grade),
+      content: `Question: ${question}${optionsText}
+Correct Answer: ${correctAnswer}
+
+Explain why "${correctAnswer}" is the correct answer. Be CONCISE (2-3 short paragraphs max). Focus ONLY on:
+1. Why this specific answer is correct
+2. What makes it the right choice for this question
+
+Use simple language appropriate for grade ${grade}. Include ONE brief Ghanaian example if it helps clarify. NO introductions, NO lengthy explanations, NO emojis unless absolutely needed for clarity.`,
+    });
+
+    // Create a fresh NAANO instance for streaming explanation
+    const naano = createNAANOAgent();
+
+    // Set up Server-Sent Events for streaming
+    res.setHeader('Content-Type', 'text/event-stream');
+    res.setHeader('Cache-Control', 'no-cache');
+    res.setHeader('Connection', 'keep-alive');
+    res.setHeader('X-Accel-Buffering', 'no'); // Disable buffering for Nginx
+
+    for await (const chunk of naano.processRequestStream(request)) {
+      res.write(`data: ${JSON.stringify({ type: 'content', text: chunk })}\n\n`);
+    }
+
+    res.write('data: [DONE]\n\n');
+    res.end();
+  } catch (error: any) {
+    console.error('Error explaining answer:', error);
+
+    // Handle validation errors
+    if (error instanceof z.ZodError) {
+      res.status(400).json({
+        error: 'Validation error',
+        details: error.errors,
+      });
+      return;
+    }
+
+    res.status(500).json({
+      error: error.message || 'Internal server error',
+    });
+  }
+});
+
+/**
  * POST /api/naano/reset
  * Reset conversation history
  */

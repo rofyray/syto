@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
 import { useSearchParams, useNavigate } from 'react-router-dom';
+import ReactMarkdown from 'react-markdown';
 
 import { useAuthStore } from '@/stores/auth-store';
 import {
@@ -51,6 +52,10 @@ export function QuestionsPage() {
   const [isNavExpanded, setIsNavExpanded] = useState(false);
   const [showFeedback, setShowFeedback] = useState(false);
   const [showBreakdown, setShowBreakdown] = useState(false);
+  const [questionTries, setQuestionTries] = useState<Record<number, number>>({});
+  const [showNaanoExplanation, setShowNaanoExplanation] = useState(false);
+  const [naanoExplanation, setNaanoExplanation] = useState('');
+  const [isLoadingExplanation, setIsLoadingExplanation] = useState(false);
 
   useEffect(() => {
     if (topicName && exerciseName && subject && profile) {
@@ -137,17 +142,36 @@ export function QuestionsPage() {
     const currentQ = generatedQuestions[currentQuestionIndex];
     const correctAnswer = currentQ.correct_answer;
     const isCorrect = selectedAnswer === correctAnswer;
+    const currentTries = questionTries[currentQuestionIndex] || 0;
+    const attemptNumber = currentTries + 1;
+
+    // Update tries count
+    setQuestionTries(prev => ({ ...prev, [currentQuestionIndex]: attemptNumber }));
 
     if (isCorrect) {
       setScore(prev => prev + 1);
-    }
-    setIsAnswerChecked(true);
-    setShowFeedback(true);
+      setIsAnswerChecked(true);
+      setShowFeedback(true);
 
-    // Animate feedback out after 2 seconds
-    setTimeout(() => {
-      setShowFeedback(false);
-    }, 2000);
+      // Animate feedback out after 2 seconds for correct answer
+      setTimeout(() => {
+        setShowFeedback(false);
+      }, 2000);
+    } else {
+      // Wrong answer
+      if (attemptNumber === 1) {
+        // First try - brief feedback, no correct answer shown
+        setShowFeedback(true);
+        setTimeout(() => {
+          setShowFeedback(false);
+        }, 2000);
+      } else {
+        // Second try - persistent feedback with correct answer
+        setIsAnswerChecked(true);
+        setShowFeedback(true);
+        // Don't auto-hide feedback on second wrong try
+      }
+    }
 
     // Save user answer to database
     if (profile && moduleId && topicId && exerciseId && currentQ.id) {
@@ -166,7 +190,7 @@ export function QuestionsPage() {
         question_type: 'multiple-choice',
         time_spent_seconds: timeSpent,
         session_id: sessionId,
-        attempt_number: 1,
+        attempt_number: attemptNumber,
       };
 
       try {
@@ -542,7 +566,6 @@ export function QuestionsPage() {
 
   // Determine theme colors based on subject
   const isMathematics = subject?.toLowerCase() === 'mathematics';
-  const themeColor = isMathematics ? 'amber' : 'emerald';
   const primaryGlass = isMathematics ? 'liquid-glass-primary-math' : 'liquid-glass-primary-english';
 
   return (
@@ -572,7 +595,7 @@ export function QuestionsPage() {
               <RadioGroup
                 value={selectedAnswers[currentQuestionIndex] || ''}
                 onValueChange={(value: string) => handleAnswerSelect(currentQuestionIndex, value)}
-                disabled={isAnswerChecked}
+                disabled={isAnswerChecked || (questionTries[currentQuestionIndex] || 0) >= 2}
                 className="space-y-3"
               >
                 {currentQuestion.options?.map((option, index) => (
@@ -602,7 +625,7 @@ export function QuestionsPage() {
               </RadioGroup>
 
               {/* Animated Feedback */}
-              {isAnswerChecked && showFeedback && (
+              {showFeedback && (
                 <div className={`mt-6 p-6 rounded-xl transform transition-all duration-500 ease-out ${
                   showFeedback ? 'scale-100 opacity-100' : 'scale-95 opacity-0'
                 } ${
@@ -624,10 +647,109 @@ export function QuestionsPage() {
                         <XCircle className="h-10 w-10 animate-pulse" />
                         <div className="text-center">
                           <p className="text-3xl font-bold">Not quite! 💭</p>
-                          <p className="text-sm mt-1 opacity-90">The correct answer is: <span className="font-bold">{currentQuestion.correct_answer}</span></p>
+                          {(questionTries[currentQuestionIndex] || 0) === 1 ? (
+                            <p className="text-sm mt-1 opacity-90">Try again!</p>
+                          ) : (
+                            <p className="text-sm mt-1 opacity-90">The correct answer is: <span className="font-bold">{currentQuestion.correct_answer}</span></p>
+                          )}
                         </div>
                       </>
                     )}
+                  </div>
+                </div>
+              )}
+
+              {/* Answer Description Pane - Only shows after second wrong try */}
+              {!isCorrect && (questionTries[currentQuestionIndex] || 0) === 2 && showFeedback && (
+                <div className="mt-6 animate-in fade-in slide-in-from-bottom-4 duration-500">
+                  <div className="liquid-glass-option border border-white/20 rounded-xl p-6 shadow-xl">
+                    <div className="flex items-start gap-3 mb-4">
+                      <div className="flex-shrink-0 w-8 h-8 rounded-full bg-blue-500/20 flex items-center justify-center">
+                        <AlertCircle className="h-5 w-5 text-blue-400" />
+                      </div>
+                      <div className="flex-1">
+                        <h3 className="text-lg font-bold mb-2 text-white">Answer Description</h3>
+                        <p className="text-gray-300 text-sm leading-relaxed">
+                          {currentQuestion.correct_answer} is the correct answer because it represents the most direct and efficient solution to this question. The other options don't fully address the requirements presented in the question.
+                        </p>
+                      </div>
+                    </div>
+
+                    {/* Ask NAANO Button */}
+                    <div className="mt-4 pt-4 border-t border-white/10">
+                      <Button
+                        onClick={async () => {
+                          setShowNaanoExplanation(true);
+                          setIsLoadingExplanation(true);
+                          setNaanoExplanation('');
+
+                          try {
+                            const response = await fetch('/api/naano/explain-answer', {
+                              method: 'POST',
+                              headers: {
+                                'Content-Type': 'application/json',
+                              },
+                              body: JSON.stringify({
+                                question: currentQuestion.question_text,
+                                correctAnswer: currentQuestion.correct_answer,
+                                options: currentQuestion.options,
+                                subject: subject,
+                                grade: profile?.grade_level,
+                              }),
+                            });
+
+                            if (!response.ok) {
+                              throw new Error('Failed to get explanation');
+                            }
+
+                            const reader = response.body?.getReader();
+                            const decoder = new TextDecoder();
+                            let accumulatedText = '';
+
+                            if (reader) {
+                              while (true) {
+                                const { done, value } = await reader.read();
+                                if (done) break;
+
+                                const chunk = decoder.decode(value, { stream: true });
+                                const lines = chunk.split('\n');
+
+                                for (const line of lines) {
+                                  if (line.startsWith('data: ')) {
+                                    const data = line.slice(6);
+                                    if (data === '[DONE]') continue;
+
+                                    try {
+                                      const parsed = JSON.parse(data);
+                                      if (parsed.type === 'content' && parsed.text) {
+                                        accumulatedText += parsed.text;
+                                        setNaanoExplanation(accumulatedText);
+                                      }
+                                    } catch (e) {
+                                      // Ignore parse errors
+                                    }
+                                  }
+                                }
+                              }
+                            }
+                          } catch (error) {
+                            console.error('Error getting explanation:', error);
+                            setNaanoExplanation('Sorry, I had trouble explaining this answer. Please try again later.');
+                          } finally {
+                            setIsLoadingExplanation(false);
+                          }
+                        }}
+                        disabled={isLoadingExplanation}
+                        className={`w-full ${primaryGlass} px-6 py-3 rounded-lg border ${
+                          isMathematics
+                            ? 'border-amber-300/30 hover:shadow-xl hover:shadow-amber-500/30'
+                            : 'border-emerald-300/30 hover:shadow-xl hover:shadow-emerald-500/30'
+                        } text-white font-semibold transition-all duration-200 hover:scale-[1.02] flex items-center justify-center gap-2`}
+                      >
+                        <Sparkles className="h-5 w-5" />
+                        {isLoadingExplanation ? 'Loading...' : 'Ask NAANO to explain'}
+                      </Button>
+                    </div>
                   </div>
                 </div>
               )}
@@ -636,9 +758,9 @@ export function QuestionsPage() {
               <div className="mt-8 flex justify-center">
                 <Button
                   onClick={handleCheckAnswer}
-                  disabled={!selectedAnswers[currentQuestionIndex] || isAnswerChecked}
+                  disabled={!selectedAnswers[currentQuestionIndex] || (questionTries[currentQuestionIndex] || 0) >= 2 || (isAnswerChecked && isCorrect)}
                   className={`px-8 py-6 text-lg font-bold rounded-xl shadow-lg transition-all duration-200 border ${
-                    isAnswerChecked
+                    (!selectedAnswers[currentQuestionIndex] || (questionTries[currentQuestionIndex] || 0) >= 2 || (isAnswerChecked && isCorrect))
                       ? 'liquid-glass-disabled cursor-not-allowed border-white/10'
                       : `${primaryGlass} ${
                           isMathematics
@@ -647,12 +769,87 @@ export function QuestionsPage() {
                         } hover:scale-105`
                   }`}
                 >
-                  {isAnswerChecked ? 'Answer Checked ✓' : 'Check Answer'}
+                  {isAnswerChecked && isCorrect
+                    ? 'Correct! ✓'
+                    : (questionTries[currentQuestionIndex] || 0) >= 2
+                    ? 'No More Tries'
+                    : (questionTries[currentQuestionIndex] || 0) === 1 && !isCorrect
+                    ? 'Try Again'
+                    : 'Check Answer'}
                 </Button>
               </div>
             </CardContent>
           </Card>
         </div>
+
+        {/* NAANO Explanation Modal */}
+        <Dialog open={showNaanoExplanation} onOpenChange={setShowNaanoExplanation}>
+          <DialogContent className="max-w-2xl max-h-[80vh] overflow-y-auto liquid-glass border border-white/20">
+            <DialogHeader>
+              <DialogTitle className="text-2xl font-bold flex items-center gap-2">
+                <Sparkles className={isMathematics ? 'text-amber-400' : 'text-emerald-400'} />
+                NAANO's Explanation
+              </DialogTitle>
+            </DialogHeader>
+
+            <div className="space-y-4">
+              {/* Question Context */}
+              <div className="liquid-glass-option border border-white/10 rounded-lg p-4">
+                <p className="text-sm text-gray-400 mb-2">Question:</p>
+                <p className="text-white font-medium">{currentQuestion.question_text}</p>
+                <p className="text-sm text-emerald-400 mt-3 font-semibold">
+                  Correct Answer: {currentQuestion.correct_answer}
+                </p>
+              </div>
+
+              {/* NAANO's Explanation */}
+              <div className="liquid-glass-option border border-white/10 rounded-lg p-6">
+                {isLoadingExplanation ? (
+                  <div className="flex flex-col items-center justify-center py-8">
+                    <Loader2 className="h-10 w-10 animate-spin text-blue-400 mb-3" />
+                    <p className="text-gray-400">NAANO is thinking...</p>
+                  </div>
+                ) : naanoExplanation ? (
+                  <div className="prose prose-invert prose-sm max-w-none">
+                    <ReactMarkdown
+                      components={{
+                        h1: ({node, ...props}) => <h1 className="text-2xl font-bold mb-4 text-white" {...props} />,
+                        h2: ({node, ...props}) => <h2 className="text-xl font-bold mb-3 mt-6 text-white" {...props} />,
+                        h3: ({node, ...props}) => <h3 className="text-lg font-semibold mb-2 mt-4 text-white" {...props} />,
+                        p: ({node, ...props}) => <p className="text-gray-300 leading-relaxed mb-4" {...props} />,
+                        ul: ({node, ...props}) => <ul className="list-disc list-inside mb-4 text-gray-300 space-y-2" {...props} />,
+                        ol: ({node, ...props}) => <ol className="list-decimal list-inside mb-4 text-gray-300 space-y-2" {...props} />,
+                        li: ({node, ...props}) => <li className="text-gray-300" {...props} />,
+                        strong: ({node, ...props}) => <strong className="font-bold text-white" {...props} />,
+                        em: ({node, ...props}) => <em className="italic text-gray-200" {...props} />,
+                        code: ({node, ...props}) => <code className="bg-gray-800/50 px-2 py-1 rounded text-emerald-400" {...props} />,
+                        hr: ({node, ...props}) => <hr className="border-white/10 my-6" {...props} />,
+                      }}
+                    >
+                      {naanoExplanation}
+                    </ReactMarkdown>
+                  </div>
+                ) : (
+                  <p className="text-gray-400 text-center py-4">Click the button below to get an explanation</p>
+                )}
+              </div>
+
+              {/* Close Button */}
+              <div className="flex justify-center">
+                <Button
+                  onClick={() => setShowNaanoExplanation(false)}
+                  className={`${primaryGlass} px-6 py-3 rounded-lg border ${
+                    isMathematics
+                      ? 'border-amber-300/30 hover:shadow-xl hover:shadow-amber-500/30'
+                      : 'border-emerald-300/30 hover:shadow-xl hover:shadow-emerald-500/30'
+                  } text-white font-semibold`}
+                >
+                  Close
+                </Button>
+              </div>
+            </div>
+          </DialogContent>
+        </Dialog>
 
         {/* Bottom Navigation Bar */}
         <div className="w-full max-w-3xl">
