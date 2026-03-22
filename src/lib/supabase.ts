@@ -60,12 +60,21 @@ export type Exercise = {
 
 export type Question = {
   id: string;
-  exercise_id: string;
+  exercise_id?: string;
   question_text: string;
   options?: string[];
   correct_answer: string;
   explanation?: string;
   difficulty: 'easy' | 'medium' | 'hard';
+  order_index?: number;
+  // Question bank fields (AI-generated shared pool)
+  topic_name?: string;
+  subject?: string;
+  grade_level?: number;
+  generation_hash?: string;
+  cultural_context?: string;
+  curriculum_alignment?: string;
+  generated_by?: string;
 };
 
 export type UserProgress = {
@@ -362,6 +371,128 @@ export async function saveCompleteModule(moduleData: {
 }
 
 // ============================================================================
+// QUESTION BANK FUNCTIONS
+// ============================================================================
+
+/**
+ * Get AI-generated questions from the shared pool by topic, subject, grade, difficulty
+ */
+export async function getQuestionPool(
+  subject: string,
+  gradeLevel: number,
+  topicName: string,
+  difficulty: string = 'medium'
+): Promise<Question[]> {
+  const { data, error } = await supabase
+    .from('questions')
+    .select('*')
+    .eq('subject', subject)
+    .eq('grade_level', gradeLevel)
+    .eq('topic_name', topicName)
+    .eq('difficulty', difficulty)
+    .eq('generated_by', 'naano-ai');
+
+  if (error) {
+    console.error('Error fetching question pool:', error);
+    return [];
+  }
+
+  return data as Question[];
+}
+
+/**
+ * Get question IDs that a student has answered correctly (for exclusion from pool)
+ */
+export async function getStudentCorrectQuestionIds(
+  userId: string,
+  questionIds: string[]
+): Promise<string[]> {
+  if (questionIds.length === 0) return [];
+
+  const { data, error } = await supabase
+    .from('user_answers')
+    .select('question_id')
+    .eq('user_id', userId)
+    .eq('is_correct', true)
+    .in('question_id', questionIds);
+
+  if (error) {
+    console.error('Error fetching student correct question IDs:', error);
+    return [];
+  }
+
+  // Return unique question IDs
+  return [...new Set(data.map(d => d.question_id))];
+}
+
+/**
+ * Save AI-generated questions to the shared question pool
+ */
+export async function savePoolQuestions(
+  questions: Array<{
+    question_text: string;
+    options: string[];
+    correct_answer: string;
+    explanation?: string;
+    difficulty: string;
+    topic_name: string;
+    subject: string;
+    grade_level: number;
+    cultural_context?: string;
+    curriculum_alignment?: string;
+    generation_hash: string;
+  }>
+): Promise<Question[]> {
+  const records = questions.map((q, index) => ({
+    id: `ai-${crypto.randomUUID()}`,
+    question_text: q.question_text,
+    options: q.options,
+    correct_answer: q.correct_answer,
+    explanation: q.explanation || '',
+    difficulty: q.difficulty,
+    order_index: index,
+    generated_by: 'naano-ai',
+    topic_name: q.topic_name,
+    subject: q.subject,
+    grade_level: q.grade_level,
+    cultural_context: q.cultural_context,
+    curriculum_alignment: q.curriculum_alignment,
+    generation_hash: q.generation_hash,
+  }));
+
+  const { data, error } = await supabase
+    .from('questions')
+    .insert(records)
+    .select();
+
+  if (error) {
+    console.error('Error saving pool questions:', error);
+    return [];
+  }
+
+  return data as Question[];
+}
+
+/**
+ * Check for existing questions by generation hash (dedup)
+ */
+export async function getExistingQuestionHashes(hashes: string[]): Promise<string[]> {
+  if (hashes.length === 0) return [];
+
+  const { data, error } = await supabase
+    .from('questions')
+    .select('generation_hash')
+    .in('generation_hash', hashes);
+
+  if (error) {
+    console.error('Error checking existing question hashes:', error);
+    return [];
+  }
+
+  return data.map(d => d.generation_hash);
+}
+
+// ============================================================================
 // USER ANSWERS FUNCTIONS
 // ============================================================================
 
@@ -569,52 +700,48 @@ export async function getSubjectCompletion(
   subject: 'english' | 'mathematics',
   gradeLevel: number
 ): Promise<{ completedModules: number; totalModules: number; percentage: number }> {
-  // Get all modules for this grade and subject
-  const allModules = await getModulesByGradeAndSubject(gradeLevel, subject);
+  // Single query: get all modules with their topics and user progress
+  const { data: modules, error } = await supabase
+    .from('modules')
+    .select(`
+      id,
+      topics (id),
+      user_progress!left (topic_id, completed)
+    `)
+    .eq('subject', subject)
+    .eq('grade_level', gradeLevel);
 
-  if (allModules.length === 0) {
-    return { completedModules: 0, totalModules: 0, percentage: 0 };
+  if (error || !modules || modules.length === 0) {
+    return { completedModules: 0, totalModules: modules?.length || 0, percentage: 0 };
   }
 
-  // Get user's progress for this subject
+  // Filter user_progress client-side for this user (RLS handles access, but we need user filter)
   const { data: userProgress } = await supabase
     .from('user_progress')
     .select('module_id, topic_id, completed')
-    .eq('user_id', userId);
+    .eq('user_id', userId)
+    .eq('completed', true);
 
-  if (!userProgress || userProgress.length === 0) {
-    return { completedModules: 0, totalModules: allModules.length, percentage: 0 };
-  }
-
-  let completedModulesCount = 0;
-
-  // For each module, check if all topics are completed
-  for (const module of allModules) {
-    // Get all topics for this module
-    const moduleTopics = await getTopicsByModuleId(module.id);
-
-    if (moduleTopics.length === 0) continue;
-
-    // Get unique completed topics for this module
-    const completedTopicIds = new Set(
-      userProgress
-        .filter(p => p.module_id === module.id && p.topic_id && p.completed)
-        .map(p => p.topic_id)
-    );
-
-    // Module is complete if all topics are completed
-    if (completedTopicIds.size === moduleTopics.length) {
-      completedModulesCount++;
+  const progressByModule = new Map<string, Set<string>>();
+  for (const p of userProgress || []) {
+    if (p.topic_id) {
+      if (!progressByModule.has(p.module_id)) {
+        progressByModule.set(p.module_id, new Set());
+      }
+      progressByModule.get(p.module_id)!.add(p.topic_id);
     }
   }
 
-  const percentage = Math.round((completedModulesCount / allModules.length) * 100);
+  let completedModulesCount = 0;
+  for (const mod of modules) {
+    const topicCount = (mod.topics as any[])?.length || 0;
+    if (topicCount === 0) continue;
+    const completedTopics = progressByModule.get(mod.id)?.size || 0;
+    if (completedTopics >= topicCount) completedModulesCount++;
+  }
 
-  return {
-    completedModules: completedModulesCount,
-    totalModules: allModules.length,
-    percentage
-  };
+  const percentage = Math.round((completedModulesCount / modules.length) * 100);
+  return { completedModules: completedModulesCount, totalModules: modules.length, percentage };
 }
 
 /**

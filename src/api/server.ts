@@ -59,7 +59,9 @@ app.get('/health', cacheMiddleware(5 * 60 * 1000), (_req: Request, res: Response
 });
 
 // Cache statistics endpoint (no auth required)
-app.get('/cache-stats', getCacheStats);
+app.get('/cache-stats', (req, res, next) => {
+  getCacheStats(req, res).catch(next);
+});
 
 // API routes with authentication and activity logging
 app.use('/api/naano', 

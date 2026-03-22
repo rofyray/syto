@@ -1,6 +1,7 @@
 import express, { Request, Response } from 'express';
 import { getNAANOAgent, createNAANOAgent } from '../../lib/naano/index.js';
 import { NAANORequestSchema } from '../../lib/naano/types.js';
+import { getQuestionsForStudent } from '../../lib/question-bank.js';
 import { z } from 'zod';
 
 const router = express.Router();
@@ -56,11 +57,12 @@ router.post('/chat', async (req: Request, res: Response) => {
 
 /**
  * POST /api/naano/generate-questions
- * Generate curriculum-aligned questions
+ * Generate curriculum-aligned questions using the shared question bank.
+ * Pulls from existing pool first; only calls LLM if not enough questions exist.
  */
 router.post('/generate-questions', async (req: Request, res: Response) => {
   try {
-    const { topic, subject, grade, difficulty, count } = req.body;
+    const { topic, subject, grade, difficulty, count, userId } = req.body;
 
     if (!topic || !subject || !grade) {
       res.status(400).json({
@@ -69,63 +71,34 @@ router.post('/generate-questions', async (req: Request, res: Response) => {
       return;
     }
 
-    const request = NAANORequestSchema.parse({
-      type: 'generate_questions',
+    // Use question bank: pool lookup first, LLM generation only if needed
+    const result = await getQuestionsForStudent({
+      userId: userId || (req as any).userId,
+      topic,
       subject,
       grade: parseInt(grade),
-      content: `Generate ${count || 5} ${difficulty || 'medium'} multiple-choice questions about ${topic} for grade ${grade} ${subject}.
-
-IMPORTANT:
-1. First use the search_curriculum tool to get relevant curriculum content
-2. Then generate questions based on the curriculum
-3. Each question MUST include Ghanaian cultural context (names, locations, foods, currency)
-4. Return ONLY valid JSON in this exact format:
-
-{
-  "questions": [
-    {
-      "id": "q1",
-      "questionText": "...",
-      "options": ["A. ...", "B. ...", "C. ...", "D. ..."],
-      "correctAnswer": "A. ...",
-      "explanation": "...",
-      "difficulty": "${difficulty || 'medium'}",
-      "culturalContext": "Description of Ghanaian elements used"
-    }
-  ]
-}`,
-      context: { topic, difficulty },
+      difficulty: difficulty || 'medium',
+      count: count || 5,
     });
 
-    // Create a fresh NAANO instance for each question generation request
-    // This prevents conversation history pollution from previous requests
-    const naano = createNAANOAgent();
-    const response = await naano.processRequest(request);
-
-    // Try to parse questions from response
-    let questions;
-    try {
-      // Try to extract JSON from the response
-      const jsonMatch = response.content.toString().match(/\{[\s\S]*\}/);
-      if (jsonMatch) {
-        const parsed = JSON.parse(jsonMatch[0]);
-        questions = parsed.questions || parsed;
-      } else {
-        questions = JSON.parse(response.content.toString());
-      }
-    } catch (parseError) {
-      console.error('Error parsing questions:', parseError);
-      res.status(500).json({
-        error: 'Failed to parse generated questions',
-        rawResponse: response.content,
-      });
-      return;
-    }
+    // Transform DB format to API response format for frontend compatibility
+    const questions = result.questions.map((q) => ({
+      id: q.id,
+      questionText: q.question_text,
+      options: q.options,
+      correctAnswer: q.correct_answer,
+      explanation: q.explanation,
+      difficulty: q.difficulty,
+    }));
 
     res.json({
       success: true,
-      questions: Array.isArray(questions) ? questions : [questions],
-      metadata: response.metadata,
+      questions,
+      metadata: {
+        ...result.metadata,
+        fromPool: result.fromPool,
+        newlyGenerated: result.newlyGenerated,
+      },
     });
   } catch (error: any) {
     console.error('Error generating questions:', error);
@@ -138,10 +111,8 @@ IMPORTANT:
       return;
     }
 
-    // Check if it's a Milvus-related error
-    if (error.message?.includes('STOPPED') ||
-        error.message?.includes('CURRICULUM_DATABASE_OFFLINE') ||
-        error.code === 16) {
+    // Check if it's a curriculum database error
+    if (error.message?.includes('CURRICULUM_DATABASE_OFFLINE')) {
       res.status(503).json({
         error: 'NAANO is currently offline',
         message: 'The curriculum database is unavailable right now. Please try again in a few minutes.',

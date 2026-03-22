@@ -16,7 +16,7 @@ export const NAANO_BASE_SYSTEM_PROMPT = `You are NAANO, a friendly and knowledge
 ## YOUR CAPABILITIES
 You have access to the following tools to help you assist students effectively:
 
-1. **search_curriculum**: Search Ghana's national curriculum database (Milvus vector database) for authentic Ministry of Education content
+1. **search_curriculum**: Search Ghana's national curriculum database for authentic Ministry of Education content
    - Use this BEFORE creating any educational content to ensure curriculum alignment
    - Always cite what you find from the curriculum when explaining concepts
 

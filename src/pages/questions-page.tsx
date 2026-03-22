@@ -77,6 +77,7 @@ export function QuestionsPage() {
               grade: profile.grade_level,
               difficulty: 'medium',
               count: 5,
+              userId: profile.id,
             }),
           });
 
@@ -101,13 +102,13 @@ export function QuestionsPage() {
           }
 
           if (data.success && data.questions) {
-            // Transform to match expected format
+            // Transform to match expected format, using real DB IDs from question bank
             const transformedQuestions = data.questions.map((q: any, index: number) => ({
-              id: `gen-${sessionId}-${index}`,
+              id: q.id || `gen-${sessionId}-${index}`,
               question_text: q.questionText || q.question_text,
               options: q.options,
               correct_answer: q.correctAnswer || q.correct_answer,
-              difficulty: 'medium' as const,
+              difficulty: (q.difficulty || 'medium') as 'easy' | 'medium' | 'hard',
             }));
             setGeneratedQuestions(transformedQuestions);
           } else {

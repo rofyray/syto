@@ -5,7 +5,12 @@
 
 export const NAANO_CONFIG = {
   // Model configuration
-  model: 'claude-sonnet-4-5-20250929',
+  models: {
+    // For structured output: question generation, answer validation
+    primary: 'claude-sonnet-4-6-20250514',
+    // For streaming text: chat, explanations
+    fast: 'claude-haiku-4-5-20251001',
+  },
   maxTokens: 4096,
   temperature: 0.7,
 

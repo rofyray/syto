@@ -55,7 +55,7 @@ export function PrivacyPolicyPage() {
         },
         {
           subtitle: "Service Providers",
-          text: "We share limited information with trusted service providers who help us operate Syto: Supabase (database and authentication), Anthropic (Claude AI for NAANO tutor), Zilliz (Milvus vector database for curriculum search), OpenAI (text embeddings), and Netlify (hosting). These providers are contractually obligated to protect your data and can only use it to provide services to us."
+          text: "We share limited information with trusted service providers who help us operate Syto: Supabase (database, authentication, and curriculum search), Anthropic (Claude AI for NAANO tutor), OpenAI (text embeddings), and Netlify (hosting). These providers are contractually obligated to protect your data and can only use it to provide services to us."
         },
         {
           subtitle: "Legal Requirements",

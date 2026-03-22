@@ -1,10 +1,10 @@
 import Anthropic from '@anthropic-ai/sdk';
-import { getCurriculumContext } from '../../milvus-client.js';
+import { getCurriculumContext } from '../../curriculum-search.js';
 import { CurriculumSearchToolSchema, type CurriculumSearchResult } from '../types.js';
 
 /**
  * Curriculum Search Tool Definition
- * Allows NAANO to search the Milvus curriculum database
+ * Allows NAANO to search the curriculum database
  */
 export const curriculumSearchTool: Anthropic.Tool = {
   name: 'search_curriculum',
@@ -72,7 +72,7 @@ export async function handleCurriculumSearch(input: unknown): Promise<string> {
     // Validate input
     const params = CurriculumSearchToolSchema.parse(input);
 
-    // Query Milvus for curriculum content
+    // Query curriculum content via pgvector
     const curriculumContext = await getCurriculumContext(
       params.subject,
       params.grade,

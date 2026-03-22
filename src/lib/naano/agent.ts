@@ -15,7 +15,7 @@ export class NAANOAgent {
   private conversationHistory: AnthropicMessageParam[] = [];
   private systemPrompt: string;
 
-  constructor() {
+  constructor(private modelOverride?: string) {
     // Validate configuration
     if (!validateNAANOConfig()) {
       throw new Error('Invalid NAANO configuration. Please check environment variables.');
@@ -31,6 +31,54 @@ export class NAANOAgent {
   }
 
   /**
+   * Get the appropriate model for a given request type
+   * Primary (Sonnet 4.6): structured output, question generation, validation
+   * Fast (Haiku 4.5): chat, explanations, streaming text
+   */
+  private getModel(requestType: NAANORequest['type']): string {
+    if (this.modelOverride) return this.modelOverride;
+    switch (requestType) {
+      case 'generate_questions':
+      case 'validate_answer':
+        return NAANO_CONFIG.models.primary;
+      default:
+        return NAANO_CONFIG.models.fast;
+    }
+  }
+
+  /**
+   * Get system prompt as content blocks with cache_control
+   * Base prompt is cached (ephemeral, 5-min TTL) to reduce input token costs
+   */
+  private getSystemPromptBlocks(requestType: NAANORequest['type']): Anthropic.TextBlockParam[] {
+    const baseBlock: Anthropic.TextBlockParam = {
+      type: 'text',
+      text: NAANO_BASE_SYSTEM_PROMPT,
+      cache_control: { type: 'ephemeral', ttl: '1h' },
+    };
+
+    let rolePrompt: string;
+    switch (requestType) {
+      case 'generate_questions':
+        rolePrompt = QUESTION_GENERATION_PROMPT;
+        break;
+      case 'chat':
+        rolePrompt = CHAT_TUTOR_PROMPT;
+        break;
+      case 'explain_concept':
+        rolePrompt = CONCEPT_EXPLANATION_PROMPT;
+        break;
+      default:
+        return [baseBlock];
+    }
+
+    return [
+      baseBlock,
+      { type: 'text', text: rolePrompt },
+    ];
+  }
+
+  /**
    * Process a request with NAANO (non-streaming)
    */
   async processRequest(request: NAANORequest): Promise<NAANOResponse> {
@@ -38,8 +86,9 @@ export class NAANOAgent {
     const toolsUsed: string[] = [];
 
     try {
-      // Customize system prompt based on request type
-      const systemPrompt = this.getSystemPrompt(request.type);
+      // Get model and system prompt blocks for this request type
+      const model = this.getModel(request.type);
+      const systemBlocks = this.getSystemPromptBlocks(request.type);
 
       // Add user message to history
       this.conversationHistory.push({
@@ -49,10 +98,10 @@ export class NAANOAgent {
 
       // Create message with tools
       let response = await this.client.messages.create({
-        model: NAANO_CONFIG.model,
+        model,
         max_tokens: NAANO_CONFIG.maxTokens,
         temperature: NAANO_CONFIG.temperature,
-        system: systemPrompt,
+        system: systemBlocks,
         messages: this.conversationHistory,
         tools: this.getEnabledTools(),
       });
@@ -89,10 +138,10 @@ export class NAANOAgent {
 
         // Continue conversation with tool result
         response = await this.client.messages.create({
-          model: NAANO_CONFIG.model,
+          model,
           max_tokens: NAANO_CONFIG.maxTokens,
           temperature: NAANO_CONFIG.temperature,
-          system: systemPrompt,
+          system: systemBlocks,
           messages: this.conversationHistory,
           tools: this.getEnabledTools(),
         });
@@ -134,8 +183,9 @@ export class NAANOAgent {
    * Process request with streaming
    */
   async *processRequestStream(request: NAANORequest): AsyncGenerator<string> {
-    // Customize system prompt based on request type
-    const systemPrompt = this.getSystemPrompt(request.type);
+    // Get model and system prompt blocks for this request type
+    const model = this.getModel(request.type);
+    const systemBlocks = this.getSystemPromptBlocks(request.type);
 
     // Add user message to history
     this.conversationHistory.push({
@@ -145,10 +195,10 @@ export class NAANOAgent {
 
     // Stream the response
     const stream = this.client.messages.stream({
-      model: NAANO_CONFIG.model,
+      model,
       max_tokens: NAANO_CONFIG.maxTokens,
       temperature: NAANO_CONFIG.temperature,
-      system: systemPrompt,
+      system: systemBlocks,
       messages: this.conversationHistory,
       tools: this.getEnabledTools(),
     });
@@ -223,22 +273,6 @@ export class NAANOAgent {
     }
 
     return tools;
-  }
-
-  /**
-   * Get system prompt based on request type
-   */
-  private getSystemPrompt(requestType: NAANORequest['type']): string {
-    switch (requestType) {
-      case 'generate_questions':
-        return `${NAANO_BASE_SYSTEM_PROMPT}\n\n${QUESTION_GENERATION_PROMPT}`;
-      case 'chat':
-        return `${NAANO_BASE_SYSTEM_PROMPT}\n\n${CHAT_TUTOR_PROMPT}`;
-      case 'explain_concept':
-        return `${NAANO_BASE_SYSTEM_PROMPT}\n\n${CONCEPT_EXPLANATION_PROMPT}`;
-      default:
-        return NAANO_BASE_SYSTEM_PROMPT;
-    }
   }
 
   /**
