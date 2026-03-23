@@ -21,9 +21,11 @@ export class NAANOAgent {
       throw new Error('Invalid NAANO configuration. Please check environment variables.');
     }
 
-    // Initialize Anthropic client
+    // Initialize Anthropic client with timeout and retries
     this.client = new Anthropic({
       apiKey: process.env.ANTHROPIC_API_KEY!,
+      timeout: 120_000,
+      maxRetries: NAANO_CONFIG.errorHandling.maxRetries,
     });
 
     // Set base system prompt
@@ -108,18 +110,25 @@ export class NAANOAgent {
 
       // Handle tool calls in a loop
       while (response.stop_reason === 'tool_use') {
-        const toolUseBlock = response.content.find(
+        const toolUseBlocks = response.content.filter(
           (block) => block.type === 'tool_use'
-        ) as AnthropicToolUseBlock | undefined;
+        ) as AnthropicToolUseBlock[];
 
-        if (!toolUseBlock) break;
+        if (toolUseBlocks.length === 0) break;
 
-        toolsUsed.push(toolUseBlock.name);
+        // Execute all tools and collect results
+        const toolResults = [];
+        for (const toolUseBlock of toolUseBlocks) {
+          toolsUsed.push(toolUseBlock.name);
+          const toolResult = await this.executeTool(toolUseBlock.name, toolUseBlock.input);
+          toolResults.push({
+            type: 'tool_result' as const,
+            tool_use_id: toolUseBlock.id,
+            content: toolResult,
+          });
+        }
 
-        // Execute tool
-        const toolResult = await this.executeTool(toolUseBlock.name, toolUseBlock.input);
-
-        // Add assistant response and tool result to history
+        // Add assistant response and ALL tool results to history
         this.conversationHistory.push({
           role: 'assistant',
           content: response.content,
@@ -127,16 +136,10 @@ export class NAANOAgent {
 
         this.conversationHistory.push({
           role: 'user',
-          content: [
-            {
-              type: 'tool_result',
-              tool_use_id: toolUseBlock.id,
-              content: toolResult,
-            },
-          ],
+          content: toolResults,
         });
 
-        // Continue conversation with tool result
+        // Continue conversation with tool results
         response = await this.client.messages.create({
           model,
           max_tokens: NAANO_CONFIG.maxTokens,
@@ -180,6 +183,40 @@ export class NAANOAgent {
   }
 
   /**
+   * Generate a response without tools (single LLM call, no tool use loop).
+   * Used for question generation where curriculum context is pre-fetched.
+   */
+  async generateDirect(content: string, requestType: NAANORequest['type'] = 'generate_questions'): Promise<NAANOResponse> {
+    const startTime = Date.now();
+    const model = this.getModel(requestType);
+    const systemBlocks = this.getSystemPromptBlocks(requestType);
+
+    const response = await this.client.messages.create({
+      model,
+      max_tokens: NAANO_CONFIG.maxTokens,
+      temperature: NAANO_CONFIG.temperature,
+      system: systemBlocks,
+      messages: [{ role: 'user', content }],
+    });
+
+    const textBlock = response.content.find(
+      (block) => block.type === 'text'
+    ) as AnthropicTextBlock | undefined;
+
+    return {
+      id: response.id,
+      type: this.mapRequestTypeToResponseType(requestType),
+      content: textBlock?.text || '',
+      metadata: {
+        modelUsed: response.model,
+        tokensUsed: response.usage.input_tokens + response.usage.output_tokens,
+        processingTime: Date.now() - startTime,
+        toolsUsed: [],
+      },
+    };
+  }
+
+  /**
    * Process request with streaming
    */
   async *processRequestStream(request: NAANORequest): AsyncGenerator<string> {
@@ -193,39 +230,45 @@ export class NAANOAgent {
       content: request.content,
     });
 
-    // Stream the response
-    const stream = this.client.messages.stream({
-      model,
-      max_tokens: NAANO_CONFIG.maxTokens,
-      temperature: NAANO_CONFIG.temperature,
-      system: systemBlocks,
-      messages: this.conversationHistory,
-      tools: this.getEnabledTools(),
-    });
+    try {
+      // Stream the response
+      const stream = this.client.messages.stream({
+        model,
+        max_tokens: NAANO_CONFIG.maxTokens,
+        temperature: NAANO_CONFIG.temperature,
+        system: systemBlocks,
+        messages: this.conversationHistory,
+        tools: this.getEnabledTools(),
+      });
 
-    for await (const event of stream) {
-      if (event.type === 'content_block_delta') {
-        if (event.delta.type === 'text_delta') {
-          yield event.delta.text;
+      for await (const event of stream) {
+        if (event.type === 'content_block_delta') {
+          if (event.delta.type === 'text_delta') {
+            yield event.delta.text;
+          }
+        }
+
+        // Handle tool use
+        if (event.type === 'content_block_start' && event.content_block.type === 'tool_use') {
+          const toolBlock = event.content_block as AnthropicToolUseBlock;
+          // Tool execution would need to be handled separately
+          console.log(`Tool called: ${toolBlock.name}`);
         }
       }
 
-      // Handle tool use
-      if (event.type === 'content_block_start' && event.content_block.type === 'tool_use') {
-        const toolBlock = event.content_block as AnthropicToolUseBlock;
-        // Tool execution would need to be handled separately
-        console.log(`Tool called: ${toolBlock.name}`);
-      }
+      // Get the final message
+      const finalMessage = await stream.finalMessage();
+
+      // Add to history
+      this.conversationHistory.push({
+        role: 'assistant',
+        content: finalMessage.content,
+      });
+    } catch (error) {
+      console.error('Error in processRequestStream:', error);
+      this.resetConversation();
+      throw error;
     }
-
-    // Get the final message
-    const finalMessage = await stream.finalMessage();
-
-    // Add to history
-    this.conversationHistory.push({
-      role: 'assistant',
-      content: finalMessage.content,
-    });
   }
 
   /**

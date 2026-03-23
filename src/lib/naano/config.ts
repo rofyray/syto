@@ -7,7 +7,7 @@ export const NAANO_CONFIG = {
   // Model configuration
   models: {
     // For structured output: question generation, answer validation
-    primary: 'claude-sonnet-4-6-20250514',
+    primary: 'claude-sonnet-4-6',
     // For streaming text: chat, explanations
     fast: 'claude-haiku-4-5-20251001',
   },
@@ -62,7 +62,7 @@ export const NAANO_CONFIG = {
 
   // Error handling
   errorHandling: {
-    maxRetries: 3,
+    maxRetries: 1,
     retryDelay: 1000, // ms
     fallbackResponses: true,
   },

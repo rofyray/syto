@@ -16,8 +16,11 @@ if (typeof window !== 'undefined' && typeof import.meta !== 'undefined') {
 }
 
 // Validate that we have the required environment variables
-if (!supabaseUrl || !supabaseAnonKey) {
-  console.error('Missing Supabase environment variables');
+if (!supabaseUrl) {
+  console.error('Missing SUPABASE_URL / VITE_SUPABASE_URL environment variable');
+}
+if (!supabaseAnonKey) {
+  console.error('Missing SUPABASE_ANON_KEY / VITE_SUPABASE_ANON_KEY environment variable');
 }
 
 export const supabase = createClient(supabaseUrl, supabaseAnonKey);
@@ -168,13 +171,43 @@ export async function getModulesByGradeAndSubject(
     .select('*')
     .eq('grade_level', grade)
     .eq('subject', subject);
-  
+
   if (error) {
     console.error('Error fetching modules:', error);
     return [];
   }
-  
+
   return data as Module[];
+}
+
+// In-memory cache for modules with children
+const moduleCache = new Map<string, { data: Module[]; timestamp: number }>();
+const MODULE_CACHE_TTL = 10 * 60 * 1000; // 10 minutes
+
+export async function getModulesWithChildren(
+  grade: number,
+  subject: 'english' | 'mathematics'
+): Promise<Module[]> {
+  const cacheKey = `${grade}-${subject}`;
+  const cached = moduleCache.get(cacheKey);
+  if (cached && Date.now() - cached.timestamp < MODULE_CACHE_TTL) {
+    return cached.data;
+  }
+
+  const { data, error } = await supabase
+    .from('modules')
+    .select('*, topics(*, exercises(*))')
+    .eq('grade_level', grade)
+    .eq('subject', subject);
+
+  if (error) {
+    console.error('Error fetching modules with children:', error);
+    return [];
+  }
+
+  const result = data as Module[];
+  moduleCache.set(cacheKey, { data: result, timestamp: Date.now() });
+  return result;
 }
 
 export async function getTopicsByModuleId(moduleId: string): Promise<Topic[]> {
@@ -700,27 +733,26 @@ export async function getSubjectCompletion(
   subject: 'english' | 'mathematics',
   gradeLevel: number
 ): Promise<{ completedModules: number; totalModules: number; percentage: number }> {
-  // Single query: get all modules with their topics and user progress
-  const { data: modules, error } = await supabase
-    .from('modules')
-    .select(`
-      id,
-      topics (id),
-      user_progress!left (topic_id, completed)
-    `)
-    .eq('subject', subject)
-    .eq('grade_level', gradeLevel);
+  // Run both queries in parallel for speed
+  const [modulesResult, progressResult] = await Promise.all([
+    supabase
+      .from('modules')
+      .select('id, topics (id)')
+      .eq('subject', subject)
+      .eq('grade_level', gradeLevel),
+    supabase
+      .from('user_progress')
+      .select('module_id, topic_id, completed')
+      .eq('user_id', userId)
+      .eq('completed', true),
+  ]);
+
+  const { data: modules, error } = modulesResult;
+  const { data: userProgress } = progressResult;
 
   if (error || !modules || modules.length === 0) {
     return { completedModules: 0, totalModules: modules?.length || 0, percentage: 0 };
   }
-
-  // Filter user_progress client-side for this user (RLS handles access, but we need user filter)
-  const { data: userProgress } = await supabase
-    .from('user_progress')
-    .select('module_id, topic_id, completed')
-    .eq('user_id', userId)
-    .eq('completed', true);
 
   const progressByModule = new Map<string, Set<string>>();
   for (const p of userProgress || []) {

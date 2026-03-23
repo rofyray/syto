@@ -5,7 +5,7 @@ import { useAuthStore } from "@/stores/auth-store";
 import { Logo } from "@/components/logo";
 import { Button } from "@/components/ui/button";
 import { ThemeToggle } from "@/components/theme-toggle";
-import { cn } from "@/lib/utils";
+import { cn, capitalize } from "@/lib/utils";
 
 export function Header() {
   const [isOpen, setIsOpen] = useState(false);
@@ -85,9 +85,9 @@ export function Header() {
               <Link
                 to="/dashboard"
                 className={cn(
-                  "text-sm font-medium hover:text-ghana-gold dark:hover:text-ghana-gold transition-colors",
+                  "text-sm font-medium hover:text-ghana-green dark:hover:text-ghana-gold transition-colors",
                   location.pathname === "/dashboard" &&
-                    "text-ghana-gold dark:text-ghana-gold"
+                    "text-ghana-green dark:text-ghana-gold"
                 )}
               >
                 Dashboard
@@ -95,9 +95,9 @@ export function Header() {
               <Link
                 to="/english"
                 className={cn(
-                  "text-sm font-medium hover:text-ghana-gold dark:hover:text-ghana-gold transition-colors",
+                  "text-sm font-medium hover:text-ghana-green dark:hover:text-ghana-gold transition-colors",
                   location.pathname.startsWith("/english") &&
-                    "text-ghana-gold dark:text-ghana-gold"
+                    "text-ghana-green dark:text-ghana-gold"
                 )}
               >
                 English
@@ -105,9 +105,9 @@ export function Header() {
               <Link
                 to="/mathematics"
                 className={cn(
-                  "text-sm font-medium hover:text-ghana-gold dark:hover:text-ghana-gold transition-colors",
+                  "text-sm font-medium hover:text-ghana-green dark:hover:text-ghana-gold transition-colors",
                   location.pathname.startsWith("/mathematics") &&
-                    "text-ghana-gold dark:text-ghana-gold"
+                    "text-ghana-green dark:text-ghana-gold"
                 )}
               >
                 Mathematics
@@ -117,8 +117,8 @@ export function Header() {
                 className={cn(
                   "text-sm font-medium px-3 py-2 rounded-lg border-2 transition-all",
                   location.pathname === "/naano"
-                    ? "bg-ghana-gold text-white border-transparent shadow-lg"
-                    : "border-ghana-gold text-ghana-gold hover:bg-ghana-gold hover:text-white hover:border-transparent hover:shadow-md"
+                    ? "bg-ghana-green dark:bg-ghana-gold text-white dark:text-black border-transparent shadow-lg"
+                    : "border-ghana-green dark:border-ghana-gold text-ghana-green dark:text-ghana-gold hover:bg-ghana-green dark:hover:bg-ghana-gold hover:text-white dark:hover:text-black hover:border-transparent hover:shadow-md"
                 )}
               >
                 Ask NAANO
@@ -139,8 +139,8 @@ export function Header() {
                 className="flex items-center gap-2 text-sm"
                 onClick={() => setIsUserMenuOpen(!isUserMenuOpen)}
               >
-                <div className="w-8 h-8 rounded-full bg-gradient-to-br from-ghana-green to-ghana-gold flex items-center justify-center text-white font-semibold">
-                  {profile?.first_name?.[0] || user.email?.[0].toUpperCase()}
+                <div className="w-8 h-8 rounded-full bg-gradient-to-br from-ghana-green to-ghana-gold flex items-center justify-center text-lg">
+                  📚
                 </div>
                 <ChevronDown size={16} className={cn("transition-transform", isUserMenuOpen && "rotate-180")} />
               </Button>
@@ -149,7 +149,7 @@ export function Header() {
               {isUserMenuOpen && (
                 <div className="absolute top-full right-0 mt-2 w-56 bg-white dark:bg-gray-900 rounded-xl shadow-glass-xl border border-white/20 dark:border-white/10 backdrop-blur-xl overflow-hidden animate-scale-in z-50">
                   <div className="px-4 py-3 border-b border-border">
-                    <p className="text-sm font-medium">{profile?.first_name} {profile?.last_name}</p>
+                    <p className="text-sm font-medium">{capitalize(profile?.first_name)} {capitalize(profile?.last_name)}</p>
                     <p className="text-xs text-muted-foreground truncate">{user.email}</p>
                   </div>
                   <div className="py-2 px-2">
@@ -220,11 +220,11 @@ export function Header() {
                   className={cn(
                     "flex items-center space-x-3 rounded-md px-3 py-2 text-sm font-medium transition-colors",
                     location.pathname === "/dashboard"
-                      ? "bg-muted text-ghana-gold dark:text-ghana-gold"
-                      : "hover:bg-muted hover:text-ghana-gold"
+                      ? "bg-muted text-ghana-green dark:text-ghana-gold"
+                      : "hover:bg-muted hover:text-ghana-green dark:hover:text-ghana-gold"
                   )}
                 >
-                  <Home size={20} className={location.pathname === "/dashboard" ? "text-ghana-gold" : "text-primary-500"} />
+                  <Home size={20} className={location.pathname === "/dashboard" ? "text-ghana-green dark:text-ghana-gold" : "text-primary-500"} />
                   <span>Dashboard</span>
                 </Link>
                 <Link
@@ -232,11 +232,11 @@ export function Header() {
                   className={cn(
                     "flex items-center space-x-3 rounded-md px-3 py-2 text-sm font-medium transition-colors",
                     location.pathname.startsWith("/english")
-                      ? "bg-muted text-ghana-gold dark:text-ghana-gold"
-                      : "hover:bg-muted hover:text-ghana-gold"
+                      ? "bg-muted text-ghana-green dark:text-ghana-gold"
+                      : "hover:bg-muted hover:text-ghana-green dark:hover:text-ghana-gold"
                   )}
                 >
-                  <BookOpen size={20} className={location.pathname.startsWith("/english") ? "text-ghana-gold" : "text-primary-500"} />
+                  <BookOpen size={20} className={location.pathname.startsWith("/english") ? "text-ghana-green dark:text-ghana-gold" : "text-primary-500"} />
                   <span>English</span>
                 </Link>
                 <Link
@@ -244,11 +244,11 @@ export function Header() {
                   className={cn(
                     "flex items-center space-x-3 rounded-md px-3 py-2 text-sm font-medium transition-colors",
                     location.pathname.startsWith("/mathematics")
-                      ? "bg-muted text-ghana-gold dark:text-ghana-gold"
-                      : "hover:bg-muted hover:text-ghana-gold"
+                      ? "bg-muted text-ghana-green dark:text-ghana-gold"
+                      : "hover:bg-muted hover:text-ghana-green dark:hover:text-ghana-gold"
                   )}
                 >
-                  <BookText size={20} className={location.pathname.startsWith("/mathematics") ? "text-ghana-gold" : "text-primary-500"} />
+                  <BookText size={20} className={location.pathname.startsWith("/mathematics") ? "text-ghana-green dark:text-ghana-gold" : "text-primary-500"} />
                   <span>Mathematics</span>
                 </Link>
                 <Link
@@ -256,11 +256,11 @@ export function Header() {
                   className={cn(
                     "flex items-center space-x-3 rounded-lg px-3 py-2 text-sm font-medium border-2 transition-all",
                     location.pathname === "/naano"
-                      ? "bg-ghana-gold text-white border-transparent shadow-lg"
-                      : "border-ghana-gold text-ghana-gold dark:text-ghana-gold hover:bg-ghana-gold hover:text-white hover:border-transparent"
+                      ? "bg-ghana-green dark:bg-ghana-gold text-white dark:text-black border-transparent shadow-lg"
+                      : "border-ghana-green dark:border-ghana-gold text-ghana-green dark:text-ghana-gold hover:bg-ghana-green dark:hover:bg-ghana-gold hover:text-white dark:hover:text-black hover:border-transparent"
                   )}
                 >
-                  <MessageSquare size={20} className={location.pathname === "/naano" ? "text-white" : "text-ghana-gold"} />
+                  <MessageSquare size={20} className={location.pathname === "/naano" ? "text-white" : "text-ghana-green dark:text-ghana-gold"} />
                   <span>Ask NAANO</span>
                 </Link>
                 <Link
@@ -268,11 +268,11 @@ export function Header() {
                   className={cn(
                     "flex items-center space-x-3 rounded-md px-3 py-2 text-sm font-medium transition-colors",
                     location.pathname === "/profile"
-                      ? "bg-muted text-ghana-gold dark:text-ghana-gold"
-                      : "hover:bg-muted hover:text-ghana-gold"
+                      ? "bg-muted text-ghana-green dark:text-ghana-gold"
+                      : "hover:bg-muted hover:text-ghana-green dark:hover:text-ghana-gold"
                   )}
                 >
-                  <User size={20} className={location.pathname === "/profile" ? "text-ghana-gold" : "text-primary-500"} />
+                  <User size={20} className={location.pathname === "/profile" ? "text-ghana-green dark:text-ghana-gold" : "text-primary-500"} />
                   <span>Profile</span>
                 </Link>
                 <Button

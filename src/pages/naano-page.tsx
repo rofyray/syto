@@ -2,39 +2,31 @@ import { useState, useRef, useEffect } from "react";
 import { Send, User, Bot, Mic, StopCircle } from "lucide-react";
 import { AppLayout } from "@/components/layout/app-layout";
 import { Button } from "@/components/ui/button";
-import { Card } from "@/components/ui/card";
 import { useAuthStore } from "@/stores/auth-store";
+import { useNaanoStore, type ChatMessage } from "@/stores/naano-store";
 
 // Use local NAANO image from public folder
 import naanoImage from "/naano.png";
 
-interface Message {
-  id: string;
-  content: string;
-  sender: "user" | "naano";
-  timestamp: Date;
-}
-
 export function NAANOPage() {
   const { profile } = useAuthStore();
+  const { messages, addMessage, updateLastMessage } = useNaanoStore();
   const [message, setMessage] = useState("");
-  const [messages, setMessages] = useState<Message[]>([]);
   const [isRecording, setIsRecording] = useState(false);
   const [isProcessing, setIsProcessing] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
-  
-  // Initial greeting
+
+  // Initial greeting — only if no persisted messages
   useEffect(() => {
     if (messages.length === 0) {
-      const initialMessage: Message = {
+      addMessage({
         id: Date.now().toString(),
         content: `Hello ${profile?.username || "there"}! I'm NAANO, your learning assistant. How can I help you with your English or Mathematics lessons today?`,
         sender: "naano",
-        timestamp: new Date(),
-      };
-      setMessages([initialMessage]);
+        timestamp: new Date().toISOString(),
+      });
     }
-  }, [profile, messages.length]);
+  }, [profile, messages.length, addMessage]);
   
   // Auto-scroll to bottom on new messages
   useEffect(() => {
@@ -45,37 +37,37 @@ export function NAANOPage() {
     if (!message.trim()) return;
 
     // Add user message
-    const userMessage: Message = {
+    const userMessage: ChatMessage = {
       id: Date.now().toString(),
       content: message,
       sender: "user",
-      timestamp: new Date(),
+      timestamp: new Date().toISOString(),
     };
 
-    setMessages((prev) => [...prev, userMessage]);
+    addMessage(userMessage);
     setMessage("");
     setIsProcessing(true);
 
     try {
-      // Call new Claude-powered NAANO API with streaming
+      // Call Claude-powered NAANO API with streaming
       const response = await fetch('/api/naano/chat', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           content: userMessage.content,
-          subject: 'mathematics', // Could be dynamic based on context
+          subject: 'mathematics',
           grade: profile?.grade_level || 5,
         }),
       });
 
-      if (!response.body) {
-        throw new Error('Response body is null');
+      if (!response.body || !response.ok) {
+        throw new Error('Server error');
       }
 
       const reader = response.body.getReader();
       const decoder = new TextDecoder();
       let naanoResponseText = '';
-      let naanoMessageId = Date.now().toString();
+      let naanoMessageAdded = false;
 
       while (true) {
         const { done, value } = await reader.read();
@@ -91,31 +83,33 @@ export function NAANOPage() {
 
             try {
               const parsed = JSON.parse(data);
+
+              if (parsed.type === 'error') {
+                addMessage({
+                  id: Date.now().toString(),
+                  content: parsed.message || "Oops! NAANO ran into a small problem. Please try again in a moment!",
+                  sender: 'naano',
+                  timestamp: new Date().toISOString(),
+                });
+                return;
+              }
+
               if (parsed.chunk) {
                 naanoResponseText += parsed.chunk;
 
-                // Update UI with streaming response
-                setMessages((prev) => {
-                  const lastMessage = prev[prev.length - 1];
-                  if (lastMessage?.id === naanoMessageId && lastMessage?.sender === 'naano') {
-                    return [
-                      ...prev.slice(0, -1),
-                      { ...lastMessage, content: naanoResponseText },
-                    ];
-                  } else {
-                    return [
-                      ...prev,
-                      {
-                        id: naanoMessageId,
-                        content: naanoResponseText,
-                        sender: 'naano',
-                        timestamp: new Date(),
-                      },
-                    ];
-                  }
-                });
+                if (!naanoMessageAdded) {
+                  addMessage({
+                    id: `naano-${Date.now()}`,
+                    content: naanoResponseText,
+                    sender: 'naano',
+                    timestamp: new Date().toISOString(),
+                  });
+                  naanoMessageAdded = true;
+                } else {
+                  updateLastMessage(naanoResponseText);
+                }
               }
-            } catch (e) {
+            } catch {
               // Skip invalid JSON
             }
           }
@@ -123,13 +117,12 @@ export function NAANOPage() {
       }
     } catch (error) {
       console.error('Error sending message:', error);
-      const errorMessage: Message = {
+      addMessage({
         id: Date.now().toString(),
-        content: "Sorry naano, I'm having trouble responding right now. Please try again!",
+        content: "Sorry, I'm having trouble responding right now. Please try again!",
         sender: "naano",
-        timestamp: new Date(),
-      };
-      setMessages((prev) => [...prev, errorMessage]);
+        timestamp: new Date().toISOString(),
+      });
     } finally {
       setIsProcessing(false);
     }
@@ -162,11 +155,11 @@ export function NAANOPage() {
         {/* Header Section */}
         <div className="mb-8 bg-white/60 dark:bg-white/5 backdrop-blur-xl rounded-3xl p-6 border border-white/20 dark:border-white/10 shadow-glass-lg animate-slide-up">
           <div className="flex items-center mb-2">
-            <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-ghana-gold/20 to-ghana-gold-dark/20 flex items-center justify-center mr-3">
-              <Bot className="h-6 w-6 text-ghana-gold-dark" />
+            <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-ghana-green/20 to-ghana-green-dark/20 dark:from-ghana-gold/20 dark:to-ghana-gold-dark/20 flex items-center justify-center mr-3">
+              <Bot className="h-6 w-6 text-ghana-green-dark dark:text-ghana-gold-dark" />
             </div>
             <div className="flex-1">
-              <h1 className="text-4xl font-bold bg-gradient-to-r from-ghana-gold to-ghana-gold-dark bg-clip-text text-transparent">
+              <h1 className="text-4xl font-bold bg-gradient-to-r from-ghana-green to-ghana-green-dark dark:from-ghana-gold dark:to-ghana-gold-dark bg-clip-text text-transparent">
                 Chat with NAANO
               </h1>
               <p className="text-muted-foreground">
@@ -198,7 +191,7 @@ export function NAANOPage() {
                         className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-full overflow-hidden ${
                           msg.sender === "user"
                             ? "bg-ghana-green ml-2"
-                            : "bg-transparent mr-2 border-2 border-ghana-gold"
+                            : "bg-transparent mr-2 border-2 border-ghana-green dark:border-ghana-gold"
                         }`}
                       >
                         {msg.sender === "user" ? (
@@ -214,13 +207,13 @@ export function NAANOPage() {
                       <div
                         className={`rounded-2xl p-4 ${
                           msg.sender === "user"
-                            ? "bg-ghana-green text-white"
-                            : "bg-white/40 dark:bg-white/10 backdrop-blur-sm border border-white/30 dark:border-white/20"
+                            ? "bg-ghana-green dark:bg-ghana-green text-white"
+                            : "bg-ghana-green/10 dark:bg-white/10 backdrop-blur-sm border border-ghana-green/20 dark:border-white/20"
                         }`}
                       >
                         <p className="text-sm">{msg.content}</p>
                         <p className={`mt-1 text-xs ${msg.sender === "user" ? "opacity-70" : "text-muted-foreground"}`}>
-                          {msg.timestamp.toLocaleTimeString([], {
+                          {new Date(msg.timestamp).toLocaleTimeString([], {
                             hour: "2-digit",
                             minute: "2-digit",
                           })}
@@ -233,7 +226,7 @@ export function NAANOPage() {
                 {isProcessing && (
                   <div className="flex justify-start">
                     <div className="flex flex-row">
-                      <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full overflow-hidden bg-transparent mr-2 border-2 border-ghana-gold">
+                      <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full overflow-hidden bg-transparent mr-2 border-2 border-ghana-green dark:border-ghana-gold">
                         <img
                           src={naanoImage}
                           alt="NAANO"
@@ -242,9 +235,9 @@ export function NAANOPage() {
                       </div>
                       <div className="rounded-2xl p-4 bg-white/40 dark:bg-white/10 backdrop-blur-sm border border-white/30 dark:border-white/20">
                         <div className="flex space-x-1">
-                          <div className="h-2 w-2 rounded-full bg-ghana-gold animate-pulse"></div>
-                          <div className="h-2 w-2 rounded-full bg-ghana-gold animate-pulse delay-150"></div>
-                          <div className="h-2 w-2 rounded-full bg-ghana-gold animate-pulse delay-300"></div>
+                          <div className="h-2 w-2 rounded-full bg-ghana-green dark:bg-ghana-gold animate-pulse"></div>
+                          <div className="h-2 w-2 rounded-full bg-ghana-green dark:bg-ghana-gold animate-pulse delay-150"></div>
+                          <div className="h-2 w-2 rounded-full bg-ghana-green dark:bg-ghana-gold animate-pulse delay-300"></div>
                         </div>
                       </div>
                     </div>
@@ -283,7 +276,7 @@ export function NAANOPage() {
                   <Button
                     type="button"
                     size="icon"
-                    className="bg-gradient-to-r from-ghana-gold to-ghana-gold-dark hover:from-ghana-gold-dark hover:to-ghana-gold text-white rounded-xl shadow-lg hover:shadow-xl transition-all"
+                    className="bg-gradient-to-r from-ghana-green to-ghana-green-dark hover:from-ghana-green-dark hover:to-ghana-green dark:from-ghana-gold dark:to-ghana-gold-dark dark:hover:from-ghana-gold-dark dark:hover:to-ghana-gold text-white rounded-xl shadow-lg hover:shadow-xl transition-all"
                     onClick={handleSendMessage}
                     disabled={!message.trim() || isProcessing}
                   >
@@ -306,7 +299,7 @@ export function NAANOPage() {
           <div className="md:col-span-1 animate-slide-up" style={{animationDelay: '0.2s'}}>
             <div className="bg-white/60 dark:bg-white/5 backdrop-blur-xl rounded-3xl p-6 border border-white/20 dark:border-white/10 shadow-glass-lg">
               <div className="flex flex-col items-center">
-                <div className="mb-4 h-32 w-32 overflow-hidden rounded-full border-4 border-ghana-gold">
+                <div className="mb-4 h-32 w-32 overflow-hidden rounded-full border-4 border-ghana-green dark:border-ghana-gold">
                   <img
                     src={naanoImage}
                     alt="NAANO AI Assistant"
@@ -322,19 +315,19 @@ export function NAANOPage() {
                   <h3 className="text-lg font-semibold">How NAANO Can Help</h3>
                   <ul className="space-y-2">
                     <li className="flex items-start">
-                      <span className="mr-2 text-ghana-green">✓</span>
+                      <span className="mr-2 text-ghana-green dark:text-ghana-gold">✓</span>
                       <span>Explain difficult concepts in English and Mathematics</span>
                     </li>
                     <li className="flex items-start">
-                      <span className="mr-2 text-ghana-green">✓</span>
+                      <span className="mr-2 text-ghana-green dark:text-ghana-gold">✓</span>
                       <span>Help with homework questions and problem-solving</span>
                     </li>
                     <li className="flex items-start">
-                      <span className="mr-2 text-ghana-green">✓</span>
+                      <span className="mr-2 text-ghana-green dark:text-ghana-gold">✓</span>
                       <span>Provide examples with Ghanaian context</span>
                     </li>
                     <li className="flex items-start">
-                      <span className="mr-2 text-ghana-green">✓</span>
+                      <span className="mr-2 text-ghana-green dark:text-ghana-gold">✓</span>
                       <span>Guide you through practice exercises</span>
                     </li>
                   </ul>
@@ -344,13 +337,13 @@ export function NAANOPage() {
                   <h3 className="text-lg font-semibold mb-2">Try asking:</h3>
                   <div className="space-y-2">
                     <Button
-                      className="w-full justify-start text-left bg-ghana-gold/10 hover:bg-ghana-gold/20 text-ghana-gold-dark border-2 border-ghana-gold/30 hover:border-ghana-gold/50 rounded-xl shadow-sm hover:shadow-md transition-all"
+                      className="w-full justify-start text-left bg-ghana-green/10 hover:bg-ghana-green/20 text-ghana-green-dark border-2 border-ghana-green/30 hover:border-ghana-green/50 dark:bg-ghana-gold/10 dark:hover:bg-ghana-gold/20 dark:text-ghana-gold-dark dark:border-ghana-gold/30 dark:hover:border-ghana-gold/50 rounded-xl shadow-sm hover:shadow-md transition-all"
                       onClick={() => setMessage("Can you explain fractions to me?")}
                     >
                       Can you explain fractions to me?
                     </Button>
                     <Button
-                      className="w-full justify-start text-left bg-ghana-gold/10 hover:bg-ghana-gold/20 text-ghana-gold-dark border-2 border-ghana-gold/30 hover:border-ghana-gold/50 rounded-xl shadow-sm hover:shadow-md transition-all"
+                      className="w-full justify-start text-left bg-ghana-green/10 hover:bg-ghana-green/20 text-ghana-green-dark border-2 border-ghana-green/30 hover:border-ghana-green/50 dark:bg-ghana-gold/10 dark:hover:bg-ghana-gold/20 dark:text-ghana-gold-dark dark:border-ghana-gold/30 dark:hover:border-ghana-gold/50 rounded-xl shadow-sm hover:shadow-md transition-all"
                       onClick={() =>
                         setMessage("What are adjectives and how do I use them?")
                       }
@@ -358,7 +351,7 @@ export function NAANOPage() {
                       What are adjectives and how do I use them?
                     </Button>
                     <Button
-                      className="w-full justify-start text-left bg-ghana-gold/10 hover:bg-ghana-gold/20 text-ghana-gold-dark border-2 border-ghana-gold/30 hover:border-ghana-gold/50 rounded-xl shadow-sm hover:shadow-md transition-all"
+                      className="w-full justify-start text-left bg-ghana-green/10 hover:bg-ghana-green/20 text-ghana-green-dark border-2 border-ghana-green/30 hover:border-ghana-green/50 dark:bg-ghana-gold/10 dark:hover:bg-ghana-gold/20 dark:text-ghana-gold-dark dark:border-ghana-gold/30 dark:hover:border-ghana-gold/50 rounded-xl shadow-sm hover:shadow-md transition-all"
                       onClick={() =>
                         setMessage("Help me solve this word problem about market prices.")
                       }

@@ -4,6 +4,7 @@ import { Button } from "@/components/ui/button";
 import { AppLayout } from "@/components/layout/app-layout";
 import { User, Mail, Calendar, GraduationCap, Edit, Save, X, BookOpen, CheckCircle, Target, LogOut, Trophy } from "lucide-react";
 import { getUserProgressByUserId } from "@/lib/supabase";
+import { capitalize } from "@/lib/utils";
 import { useNavigate } from "react-router-dom";
 
 export function ProfilePage() {
@@ -37,11 +38,13 @@ export function ProfilePage() {
         const progress = await getUserProgressByUserId(user.id);
         const completed = progress.filter(p => p.completed).length;
         const attempts = progress.length;
-        const totalScore = progress.reduce((sum, p) => sum + (p.score || 0), 0);
-        const avgScore = attempts > 0 ? Math.round((totalScore / attempts) * 100) / 100 : 0;
+        const completedWithScores = progress.filter(p => p.completed && p.score > 0);
+        const totalScore = completedWithScores.reduce((sum, p) => sum + (p.score || 0), 0);
+        const avgScore = completedWithScores.length > 0 ? Math.round(totalScore / completedWithScores.length) : 0;
+        const examsOwned = new Set(progress.map(p => p.module_id)).size;
 
         setStats({
-          examsOwned: 0, // This would need to be calculated from student_modules table
+          examsOwned,
           attempts,
           completed,
           avgScore
@@ -114,8 +117,10 @@ export function ProfilePage() {
       <AppLayout>
         <div className="flex items-center justify-center min-h-[calc(100vh-80px)]">
           <div className="text-center">
-            <h2 className="text-xl font-semibold mb-2">Loading your profile...</h2>
-            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-ghana-green mx-auto"></div>
+            <h2 className="text-xl font-bold mb-4 text-ghana-green dark:text-ghana-gold">
+              Loading your profile...
+            </h2>
+            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-ghana-green dark:border-ghana-gold mx-auto"></div>
           </div>
         </div>
       </AppLayout>
@@ -142,12 +147,12 @@ export function ProfilePage() {
             <div className="mb-8 bg-white/60 dark:bg-white/5 backdrop-blur-xl rounded-3xl p-6 border border-white/20 dark:border-white/10 shadow-glass-lg animate-slide-up">
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-4">
-                  <div className="w-16 h-16 rounded-full bg-gradient-to-br from-primary-400 to-primary-600 flex items-center justify-center text-white text-2xl font-bold">
-                    {profile?.first_name?.[0]}{profile?.last_name?.[0]}
+                  <div className="w-16 h-16 rounded-full bg-gradient-to-br from-primary-400 to-primary-600 flex items-center justify-center text-3xl">
+                    📚
                   </div>
                   <div>
                     <h1 className="text-3xl font-bold bg-gradient-to-r from-ghana-green to-ghana-gold bg-clip-text text-transparent">
-                      Welcome, {profile?.first_name}
+                      Welcome, {capitalize(profile?.first_name)}
                     </h1>
                     <p className="text-muted-foreground">{user?.email}</p>
                   </div>

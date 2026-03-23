@@ -1,5 +1,6 @@
 import { create } from "zustand";
 import { supabase } from "@/lib/supabase";
+import { useNaanoStore } from "@/stores/naano-store";
 
 interface AuthState {
   user: any | null;
@@ -16,13 +17,15 @@ interface AuthState {
   updateProfile: (data: any) => Promise<void>;
 }
 
-const createDefaultProfile = async (userId: string, userEmail: string) => {
+const createDefaultProfile = async (userId: string, userEmail: string, userMetadata?: any) => {
   const defaultProfile = {
     id: userId,
-    first_name: userEmail?.split('@')[0] || 'New',
-    last_name: 'User',
-    username: userEmail?.split('@')[0] || 'New User',
-    grade_level: 4, // Default to grade 4
+    first_name: userMetadata?.first_name || userEmail?.split('@')[0] || 'New',
+    last_name: userMetadata?.last_name || '',
+    username: userMetadata?.first_name
+      ? `${userMetadata.first_name} ${userMetadata.last_name || ''}`.trim()
+      : userEmail?.split('@')[0] || 'New User',
+    grade_level: userMetadata?.grade_level || 4,
     created_at: new Date().toISOString(),
   };
 
@@ -40,7 +43,7 @@ const createDefaultProfile = async (userId: string, userEmail: string) => {
   return data;
 };
 
-const fetchOrCreateProfile = async (userId: string, userEmail: string) => {
+const fetchOrCreateProfile = async (userId: string, userEmail: string, userMetadata?: any) => {
   // First try to fetch existing profile
   const { data: profile, error } = await supabase
     .from('profiles')
@@ -56,7 +59,7 @@ const fetchOrCreateProfile = async (userId: string, userEmail: string) => {
   // If no profile exists (PGRST116 error), create a default one
   if (error && error.code === 'PGRST116') {
     console.log('No profile found for user, creating default profile...');
-    return await createDefaultProfile(userId, userEmail);
+    return await createDefaultProfile(userId, userEmail, userMetadata);
   }
 
   // If there's a different error, log it and return null
@@ -72,7 +75,7 @@ export const useAuthStore = create<AuthState>((set, get) => ({
   profile: null,
   loading: false,
   error: null,
-  initialized: true, // Start as initialized to avoid blocking UI
+  initialized: false,
 
   initialize: async () => {
     try {
@@ -86,7 +89,7 @@ export const useAuthStore = create<AuthState>((set, get) => ({
       if (sessionError) {
         console.error('AUTH STORE: Error getting session:', sessionError);
         set({ error: sessionError.message });
-        return;
+        return; // finally block will still set initialized: true
       }
       
       if (session?.user) {
@@ -95,7 +98,7 @@ export const useAuthStore = create<AuthState>((set, get) => ({
         
         // Fetch or create user profile
         console.log('AUTH STORE: Fetching or creating profile');
-        const profile = await fetchOrCreateProfile(session.user.id, session.user.email || '');
+        const profile = await fetchOrCreateProfile(session.user.id, session.user.email || '', session.user.user_metadata);
         console.log('AUTH STORE: Profile data:', profile);
         set({ profile });
       } else {
@@ -107,6 +110,8 @@ export const useAuthStore = create<AuthState>((set, get) => ({
     } catch (error: any) {
       console.error('AUTH STORE: Error initializing auth:', error);
       set({ error: error.message });
+    } finally {
+      set({ initialized: true });
     }
     
     // Set up auth state change listener AFTER initial session check
@@ -135,7 +140,7 @@ export const useAuthStore = create<AuthState>((set, get) => ({
       if (user) {
         // Fetch or create user profile - let it take as long as needed
         try {
-          const profile = await fetchOrCreateProfile(user.id, user.email || '');
+          const profile = await fetchOrCreateProfile(user.id, user.email || '', user.user_metadata);
           set({ profile });
         } catch (error) {
           console.error('Error fetching profile after auth change:', error);
@@ -167,7 +172,7 @@ export const useAuthStore = create<AuthState>((set, get) => ({
       set({ user: data.user });
       
       // Fetch or create profile after login
-      const profile = await fetchOrCreateProfile(data.user.id, data.user.email || '');
+      const profile = await fetchOrCreateProfile(data.user.id, data.user.email || '', data.user.user_metadata);
       set({ profile });
     } catch (error: any) {
       console.error('Login error:', error);
@@ -194,23 +199,8 @@ export const useAuthStore = create<AuthState>((set, get) => ({
       
       console.log('Signup successful for:', email);
       
-      // Create profile
+      // Profile is auto-created by database trigger on auth.users insert
       if (data.user) {
-        const { error: profileError } = await supabase
-          .from('profiles')
-          .insert([
-            {
-              id: data.user.id,
-              first_name: userData.first_name,
-              last_name: userData.last_name,
-              username: userData.username || `${userData.first_name} ${userData.last_name}`.trim(),
-              grade_level: userData.grade_level,
-              created_at: new Date().toISOString(),
-            },
-          ]);
-        
-        if (profileError) throw profileError;
-        
         set({ user: data.user });
         await get().fetchProfile();
       }
@@ -242,6 +232,7 @@ export const useAuthStore = create<AuthState>((set, get) => ({
 
       // Always clear local state regardless of API response
       set({ user: null, profile: null, loading: false });
+      useNaanoStore.getState().clearMessages();
 
       // Force redirect to login page
       window.location.href = '/login';
@@ -258,7 +249,7 @@ export const useAuthStore = create<AuthState>((set, get) => ({
     if (!user) return;
     
     try {
-      const profile = await fetchOrCreateProfile(user.id, user.email || '');
+      const profile = await fetchOrCreateProfile(user.id, user.email || '', user.user_metadata);
       set({ profile });
     } catch (error: any) {
       console.error('Error fetching profile:', error);

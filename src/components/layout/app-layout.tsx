@@ -18,8 +18,10 @@ export function AppLayout({ children, requireAuth = true }: AppLayoutProps) {
     return (
       <div className="flex min-h-screen items-center justify-center bg-background">
         <div className="text-center">
-          <div className="mb-4 h-8 w-8 animate-spin rounded-full border-4 border-ghana-green border-t-transparent mx-auto"></div>
-          <p className="text-muted-foreground">Loading...</p>
+          <h2 className="text-xl font-bold mb-4 text-ghana-green dark:text-ghana-gold">
+            Loading...
+          </h2>
+          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-ghana-green dark:border-ghana-gold mx-auto"></div>
         </div>
       </div>
     );

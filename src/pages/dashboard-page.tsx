@@ -12,7 +12,7 @@ import {
   getSubjectCompletion,
   type RecentModule as DBRecentModule
 } from "@/lib/supabase";
-import { getTimeBasedGreeting } from "@/lib/utils";
+import { getTimeBasedGreeting, capitalize } from "@/lib/utils";
 import { useNavigate } from "react-router-dom";
 
 interface RecentModule {
@@ -37,25 +37,21 @@ export function DashboardPage() {
     let mounted = true;
 
     const fetchData = async () => {
-      // No user, stop loading
-      if (!user) {
+      if (!user || !profile) {
         if (mounted) setLoading(false);
         return;
       }
 
-      // Wait for profile - Supabase will handle session validity
-      if (!profile) {
-        // Just keep loading, profile will come from auth state listener
-        return;
-      }
-
-      // Profile loaded, fetch dashboard data
       console.log('Fetching dashboard data...');
 
       try {
-        // Calculate subject completion using the new accurate method
-        const englishCompletion = await getSubjectCompletion(user.id, 'english', profile.grade_level);
-        const mathCompletion = await getSubjectCompletion(user.id, 'mathematics', profile.grade_level);
+        // Run all queries in parallel for fast loading
+        const [englishCompletion, mathCompletion, dbRecentModules, progress] = await Promise.all([
+          getSubjectCompletion(user.id, 'english', profile.grade_level),
+          getSubjectCompletion(user.id, 'mathematics', profile.grade_level),
+          getRecentModules(user.id, 3),
+          getUserProgressByUserId(user.id),
+        ]);
 
         if (!mounted) return;
 
@@ -63,14 +59,6 @@ export function DashboardPage() {
         setMathProgress(mathCompletion.percentage);
         setEnglishStats({ completed: englishCompletion.completedModules, total: englishCompletion.totalModules });
         setMathStats({ completed: mathCompletion.completedModules, total: mathCompletion.totalModules });
-
-        // Get recent modules using the new database view
-        const dbRecentModules = await getRecentModules(user.id, 3);
-
-        // Get user progress for module-level progress calculation
-        const progress = await getUserProgressByUserId(user.id);
-
-        if (!mounted) return;
 
         // Transform to local format with progress calculation
         const recentModulesWithProgress = dbRecentModules.map(module => {
@@ -121,17 +109,17 @@ export function DashboardPage() {
     return () => {
       mounted = false;
     };
-  }, [user, profile?.id]); // Only re-run if user changes or profile ID changes
+  }, [user?.id, profile?.id]);
 
   if (loading) {
     return (
       <AppLayout>
-        <div className="container mx-auto px-4 py-8">
-          <div className="flex items-center justify-center h-64">
-            <div className="flex flex-col items-center">
-              <div className="h-12 w-12 rounded-full border-4 border-ghana-gold border-t-transparent animate-spin"></div>
-              <p className="mt-4 text-muted-foreground">Loading your dashboard...</p>
-            </div>
+        <div className="flex items-center justify-center min-h-[calc(100vh-80px)]">
+          <div className="text-center">
+            <h2 className="text-xl font-bold mb-4 text-ghana-green dark:text-ghana-gold">
+              Loading your dashboard...
+            </h2>
+            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-ghana-green dark:border-ghana-gold mx-auto"></div>
           </div>
         </div>
       </AppLayout>
@@ -144,7 +132,7 @@ export function DashboardPage() {
         {/* Welcome Section */}
         <div className="mb-8 bg-white/60 dark:bg-white/5 backdrop-blur-xl rounded-3xl p-6 border border-white/20 dark:border-white/10 shadow-glass-lg animate-slide-up">
           <h1 className="text-4xl font-bold mb-2 bg-gradient-to-r from-ghana-green to-ghana-gold bg-clip-text text-transparent">
-            {getTimeBasedGreeting()}, {profile?.first_name || "Student"}!
+            {getTimeBasedGreeting()}, {capitalize(profile?.first_name) || "Student"}!
           </h1>
           <p className="text-muted-foreground">
             Welcome to your learning dashboard. Here's your current progress.

@@ -34,6 +34,12 @@ export function getTimeBasedGreeting(): string {
   }
 }
 
+// Capitalize first letter of a string
+export function capitalize(str: string): string {
+  if (!str) return str;
+  return str.charAt(0).toUpperCase() + str.slice(1);
+}
+
 // Check if device is mobile
 export function isMobileDevice(): boolean {
   return window.innerWidth < 768;

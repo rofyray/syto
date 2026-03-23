@@ -19,7 +19,7 @@ import {
 } from './supabase.js';
 import { supabase } from './supabase.js';
 import { createNAANOAgent } from './naano/index.js';
-import { NAANORequestSchema } from './naano/types.js';
+import { getCurriculumContext } from './curriculum-search.js';
 
 export interface QuestionBankParams {
   userId?: string;
@@ -71,36 +71,51 @@ function shuffle<T>(array: T[]): T[] {
 /**
  * Get questions for a student, pulling from the shared pool first.
  * Only generates new questions via LLM if the pool doesn't have enough.
+ * Curriculum context is pre-fetched in parallel with pool lookup to avoid
+ * an extra LLM round-trip if generation is needed.
  */
 export async function getQuestionsForStudent(
   params: QuestionBankParams
 ): Promise<QuestionBankResult> {
   const { userId, topic, subject, grade, difficulty = 'medium', count = 5 } = params;
 
-  // 1. Get all questions in the pool for this topic/grade/difficulty
-  const pool = await getQuestionPool(subject, grade, topic, difficulty);
-  const poolIds = pool.map(q => q.id);
+  // 1. Run pool lookup and curriculum pre-fetch in parallel
+  //    If pool has enough questions, curriculum context is unused (cheap: Redis-cached)
+  //    If not, we already have it ready — saves 1 full LLM round-trip
+  const [poolResult, curriculumContext] = await Promise.all([
+    getQuestionPool(subject, grade, topic, difficulty).catch(err => {
+      console.warn('Question pool lookup failed, proceeding to generate:', err);
+      return [] as Question[];
+    }),
+    getCurriculumContext(
+      subject as 'mathematics' | 'english',
+      grade,
+      topic
+    ).catch(() => ''),
+  ]);
 
-  // 2. Find which questions this student has already answered correctly
+  // 2. Check which questions the student hasn't correctly answered
   let correctIds: string[] = [];
-  if (userId && poolIds.length > 0) {
-    correctIds = await getStudentCorrectQuestionIds(userId, poolIds);
+  if (userId && poolResult.length > 0) {
+    try {
+      correctIds = await getStudentCorrectQuestionIds(userId, poolResult.map(q => q.id));
+    } catch (err) {
+      console.warn('Student answer lookup failed:', err);
+    }
   }
 
-  // 3. Filter out correctly-answered questions
-  const available = pool.filter(q => !correctIds.includes(q.id));
+  const available = poolResult.filter(q => !correctIds.includes(q.id));
 
-  // 4. If we have enough, return a random selection
+  // 3. If we have enough, return a random selection (fast path: ~200ms)
   if (available.length >= count) {
-    const selected = shuffle(available).slice(0, count);
     return {
-      questions: selected,
+      questions: shuffle(available).slice(0, count),
       fromPool: count,
       newlyGenerated: 0,
     };
   }
 
-  // 5. Need to generate more questions
+  // 4. Generate missing questions with pre-fetched curriculum context (1 LLM call)
   const needed = count - available.length;
   const generated = await generateAndSaveQuestions({
     topic,
@@ -108,6 +123,7 @@ export async function getQuestionsForStudent(
     grade,
     difficulty,
     count: needed,
+    curriculumContext,
   });
 
   const allQuestions = [...shuffle(available), ...generated];
@@ -121,7 +137,8 @@ export async function getQuestionsForStudent(
 }
 
 /**
- * Generate new questions via NAANO LLM and save to the shared pool
+ * Generate new questions via NAANO LLM and save to the shared pool.
+ * Uses pre-fetched curriculum context to avoid an extra LLM round-trip.
  */
 async function generateAndSaveQuestions(params: {
   topic: string;
@@ -129,23 +146,17 @@ async function generateAndSaveQuestions(params: {
   grade: number;
   difficulty: string;
   count: number;
+  curriculumContext?: string;
 }): Promise<Question[]> {
-  const { topic, subject, grade, difficulty, count } = params;
+  const { topic, subject, grade, difficulty, count, curriculumContext } = params;
   const startTime = Date.now();
 
   try {
-    // Build the generation request
-    const request = NAANORequestSchema.parse({
-      type: 'generate_questions',
-      subject,
-      grade,
-      content: `Generate ${count} ${difficulty} multiple-choice questions about ${topic} for grade ${grade} ${subject}.
+    // Build prompt with pre-fetched curriculum context (no tool use needed)
+    const prompt = `${curriculumContext ? `## Ghana Curriculum Reference\n${curriculumContext}\n\n` : ''}Generate ${count} ${difficulty} multiple-choice questions about "${topic}" for grade ${grade} ${subject}.
 
-IMPORTANT:
-1. First use the search_curriculum tool to get relevant curriculum content
-2. Then generate questions based on the curriculum
-3. Each question MUST include Ghanaian cultural context (names, locations, foods, currency)
-4. Return ONLY valid JSON in this exact format:
+Each question MUST include Ghanaian cultural context (names, locations, foods, currency).
+Return ONLY valid JSON in this exact format:
 
 {
   "questions": [
@@ -159,13 +170,11 @@ IMPORTANT:
       "culturalContext": "Description of Ghanaian elements used"
     }
   ]
-}`,
-      context: { topic, difficulty },
-    });
+}`;
 
-    // Create a fresh NAANO agent for generation
+    // Single LLM call with no tools — curriculum context is already in the prompt
     const naano = createNAANOAgent();
-    const response = await naano.processRequest(request);
+    const response = await naano.generateDirect(prompt, 'generate_questions');
 
     // Parse generated questions from response
     let rawQuestions: any[];
@@ -214,6 +223,21 @@ IMPORTANT:
     // Save to pool
     const saved = await savePoolQuestions(newQuestions);
 
+    // If save failed (RLS, network, etc.), fall back to in-memory questions
+    const questionsToReturn = saved.length > 0 ? saved : newQuestions.map((q, i) => ({
+      id: `temp-${crypto.randomUUID()}`,
+      question_text: q.question_text,
+      options: q.options,
+      correct_answer: q.correct_answer,
+      explanation: q.explanation || '',
+      difficulty: q.difficulty,
+      topic_name: q.topic_name,
+      subject: q.subject,
+      grade_level: q.grade_level,
+      order_index: i,
+      created_at: new Date().toISOString(),
+    } as Question));
+
     // Log the generation (non-blocking)
     const processingTime = Date.now() - startTime;
     logGeneration({
@@ -222,13 +246,13 @@ IMPORTANT:
       grade,
       difficulty,
       count,
-      questionIds: saved.map(q => q.id),
+      questionIds: questionsToReturn.map(q => q.id),
       tokensUsed: response.metadata?.tokensUsed,
       processingTime,
       success: true,
     }).catch(err => console.error('Failed to log generation:', err));
 
-    return saved;
+    return questionsToReturn;
   } catch (error) {
     console.error('Error generating questions:', error);
 

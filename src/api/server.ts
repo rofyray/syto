@@ -4,7 +4,7 @@ import cors from 'cors';
 import { rateLimiter } from './middleware/rate-limiter.js';
 import { errorHandler } from './middleware/error-handler.js';
 import { optionalAuth, logUserActivity } from './middleware/auth-middleware.js';
-import { cacheMiddleware, smartCache, getCacheStats, warmCache } from './middleware/cache.js';
+import { cacheMiddleware, getCacheStats, warmCache } from './middleware/cache.js';
 import { sanitizeInput } from './middleware/validation.js';
 import naanoRoutes from './routes/naano-routes.js';
 
@@ -64,10 +64,11 @@ app.get('/cache-stats', (req, res, next) => {
 });
 
 // API routes with authentication and activity logging
-app.use('/api/naano', 
+// Note: smartCache removed — question bank handles pooling/dedup at DB level,
+// and streaming endpoints (chat, explain-answer) use SSE, not res.json()
+app.use('/api/naano',
   optionalAuth,           // Optional authentication
   logUserActivity,        // Log user activity
-  smartCache,            // Smart caching based on content type
   naanoRoutes            // Main NAANO routes
 );
 

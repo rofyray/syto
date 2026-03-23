@@ -7,27 +7,69 @@ import { z } from 'zod';
 const router = express.Router();
 
 /**
+ * Get a user-friendly error message based on the error type.
+ * Never exposes raw backend errors to users.
+ */
+function getUserFriendlyErrorMessage(error: any): string {
+  const message = error?.message?.toLowerCase() || '';
+  const status = error?.status;
+
+  // Credit balance / authentication issues
+  if (message.includes('credit balance') || message.includes('billing') || status === 401 || message.includes('api key')) {
+    return "NAANO is taking a short break right now. Please try again later!";
+  }
+
+  // Rate limiting
+  if (status === 429 || message.includes('rate limit') || message.includes('too many requests')) {
+    return "NAANO is a bit busy right now. Please wait a moment and try again!";
+  }
+
+  // Overloaded
+  if (status === 529 || message.includes('overloaded')) {
+    return "NAANO is helping lots of students right now. Please try again in a few minutes!";
+  }
+
+  // Network / timeout
+  if (message.includes('timeout') || message.includes('network') || message.includes('econnrefused') || message.includes('fetch failed')) {
+    return "NAANO is having trouble connecting. Please check your internet and try again!";
+  }
+
+  // Default fallback
+  return "Oops! NAANO ran into a small problem. Please try again in a moment!";
+}
+
+/**
  * POST /api/naano/chat
  * Chat with NAANO AI (streaming)
  */
 router.post('/chat', async (req: Request, res: Response) => {
+  // Validate before setting SSE headers so we can return proper JSON errors
+  let request;
   try {
-    const request = NAANORequestSchema.parse({
+    request = NAANORequestSchema.parse({
       type: 'chat',
       subject: req.body.subject || 'mathematics',
       grade: req.body.grade || 5,
       content: req.body.content || req.body.message,
       context: req.body.context,
     });
+  } catch (error: any) {
+    if (error instanceof z.ZodError) {
+      res.status(400).json({ error: 'Validation error', details: error.errors });
+      return;
+    }
+    res.status(500).json({ error: 'Internal server error' });
+    return;
+  }
 
-    const naano = getNAANOAgent();
+  // Set up Server-Sent Events for streaming
+  res.setHeader('Content-Type', 'text/event-stream');
+  res.setHeader('Cache-Control', 'no-cache');
+  res.setHeader('Connection', 'keep-alive');
+  res.setHeader('X-Accel-Buffering', 'no');
 
-    // Set up Server-Sent Events for streaming
-    res.setHeader('Content-Type', 'text/event-stream');
-    res.setHeader('Cache-Control', 'no-cache');
-    res.setHeader('Connection', 'keep-alive');
-    res.setHeader('X-Accel-Buffering', 'no'); // Disable buffering for Nginx
-
+  try {
+    const naano = createNAANOAgent();
     let fullResponse = '';
 
     for await (const chunk of naano.processRequestStream(request)) {
@@ -39,19 +81,10 @@ router.post('/chat', async (req: Request, res: Response) => {
     res.end();
   } catch (error: any) {
     console.error('Error in chat endpoint:', error);
-
-    // Handle validation errors
-    if (error instanceof z.ZodError) {
-      res.status(400).json({
-        error: 'Validation error',
-        details: error.errors,
-      });
-      return;
-    }
-
-    res.status(500).json({
-      error: error.message || 'Internal server error',
-    });
+    const friendlyMessage = getUserFriendlyErrorMessage(error);
+    res.write(`data: ${JSON.stringify({ type: 'error', message: friendlyMessage })}\n\n`);
+    res.write('data: [DONE]\n\n');
+    res.end();
   }
 });
 
@@ -107,6 +140,16 @@ router.post('/generate-questions', async (req: Request, res: Response) => {
       res.status(400).json({
         error: 'Validation error',
         details: error.errors,
+      });
+      return;
+    }
+
+    // Check if it's an API timeout error
+    if (error.name === 'APIConnectionTimeoutError' || error.message?.includes('timed out')) {
+      res.status(504).json({
+        error: 'Question generation timed out',
+        message: 'NAANO is taking longer than expected. Please try again.',
+        code: 'GENERATION_TIMEOUT',
       });
       return;
     }
@@ -231,19 +274,20 @@ Please provide encouraging feedback on the student's answer. If incorrect, expla
  * Explain why an answer is correct (streaming)
  */
 router.post('/explain-answer', async (req: Request, res: Response) => {
+  const { question, correctAnswer, options, subject, grade } = req.body;
+
+  if (!question || !correctAnswer || !subject || !grade) {
+    res.status(400).json({
+      error: 'Missing required fields: question, correctAnswer, subject, grade',
+    });
+    return;
+  }
+
+  const optionsText = options ? `\nOptions: ${options.join(', ')}` : '';
+
+  let request;
   try {
-    const { question, correctAnswer, options, subject, grade } = req.body;
-
-    if (!question || !correctAnswer || !subject || !grade) {
-      res.status(400).json({
-        error: 'Missing required fields: question, correctAnswer, subject, grade',
-      });
-      return;
-    }
-
-    const optionsText = options ? `\nOptions: ${options.join(', ')}` : '';
-
-    const request = NAANORequestSchema.parse({
+    request = NAANORequestSchema.parse({
       type: 'chat',
       subject,
       grade: parseInt(grade),
@@ -256,15 +300,23 @@ Explain why "${correctAnswer}" is the correct answer. Be CONCISE (2-3 short para
 
 Use simple language appropriate for grade ${grade}. Include ONE brief Ghanaian example if it helps clarify. NO introductions, NO lengthy explanations, NO emojis unless absolutely needed for clarity.`,
     });
+  } catch (error: any) {
+    if (error instanceof z.ZodError) {
+      res.status(400).json({ error: 'Validation error', details: error.errors });
+      return;
+    }
+    res.status(500).json({ error: 'Internal server error' });
+    return;
+  }
 
-    // Create a fresh NAANO instance for streaming explanation
+  // Set up Server-Sent Events for streaming
+  res.setHeader('Content-Type', 'text/event-stream');
+  res.setHeader('Cache-Control', 'no-cache');
+  res.setHeader('Connection', 'keep-alive');
+  res.setHeader('X-Accel-Buffering', 'no');
+
+  try {
     const naano = createNAANOAgent();
-
-    // Set up Server-Sent Events for streaming
-    res.setHeader('Content-Type', 'text/event-stream');
-    res.setHeader('Cache-Control', 'no-cache');
-    res.setHeader('Connection', 'keep-alive');
-    res.setHeader('X-Accel-Buffering', 'no'); // Disable buffering for Nginx
 
     for await (const chunk of naano.processRequestStream(request)) {
       res.write(`data: ${JSON.stringify({ type: 'content', text: chunk })}\n\n`);
@@ -274,19 +326,10 @@ Use simple language appropriate for grade ${grade}. Include ONE brief Ghanaian e
     res.end();
   } catch (error: any) {
     console.error('Error explaining answer:', error);
-
-    // Handle validation errors
-    if (error instanceof z.ZodError) {
-      res.status(400).json({
-        error: 'Validation error',
-        details: error.errors,
-      });
-      return;
-    }
-
-    res.status(500).json({
-      error: error.message || 'Internal server error',
-    });
+    const friendlyMessage = getUserFriendlyErrorMessage(error);
+    res.write(`data: ${JSON.stringify({ type: 'error', message: friendlyMessage })}\n\n`);
+    res.write('data: [DONE]\n\n');
+    res.end();
   }
 });
 

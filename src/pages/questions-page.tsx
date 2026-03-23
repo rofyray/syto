@@ -264,10 +264,12 @@ export function QuestionsPage() {
               <p className="text-gray-600 mb-4">Redirecting you back...</p>
             </>
           ) : (
-            <>
-              <Loader2 className="h-12 w-12 animate-spin mb-4" />
-              <p className="text-lg">NAANO is preparing your questions...</p>
-            </>
+            <div className="text-center">
+              <h2 className="text-xl font-bold mb-4 text-ghana-green dark:text-ghana-gold">
+                NAANO is preparing your questions...
+              </h2>
+              <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-ghana-green dark:border-ghana-gold mx-auto"></div>
+            </div>
           )}
         </div>
       </AppLayout>
@@ -552,11 +554,24 @@ export function QuestionsPage() {
   }
 
   if (generatedQuestions.length === 0) {
-    // This can be a placeholder or a message indicating no questions were loaded
     return (
       <AppLayout>
-        <div className="flex justify-center items-center h-screen">
-          <p className="text-lg">Waiting for questions...</p>
+        <div className="flex flex-col justify-center items-center h-screen gap-4">
+          <AlertCircle className="h-12 w-12 text-ghana-gold" />
+          <h2 className="text-xl font-bold text-ghana-green dark:text-ghana-gold">
+            Failed to load questions
+          </h2>
+          <p className="text-gray-600 dark:text-gray-400 text-center max-w-md">
+            NAANO couldn't generate questions right now. Please try again.
+          </p>
+          <Button
+            onClick={() => navigate(-1)}
+            variant="outline"
+            className="mt-2"
+          >
+            <ChevronLeft className="h-4 w-4 mr-1" />
+            Go Back
+          </Button>
         </div>
       </AppLayout>
     );
@@ -722,6 +737,10 @@ export function QuestionsPage() {
 
                                     try {
                                       const parsed = JSON.parse(data);
+                                      if (parsed.type === 'error') {
+                                        setNaanoExplanation(parsed.message || "Oops! NAANO ran into a small problem. Please try again in a moment!");
+                                        return;
+                                      }
                                       if (parsed.type === 'content' && parsed.text) {
                                         accumulatedText += parsed.text;
                                         setNaanoExplanation(accumulatedText);

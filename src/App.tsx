@@ -28,13 +28,14 @@ interface ProtectedRouteProps {
 function ProtectedRoute({ element }: ProtectedRouteProps) {
   const { user, initialized } = useAuthStore();
 
-  // Don't block rendering - let routes handle their own loading states
-  // Just redirect if not authenticated once initialized
-  if (initialized && !user) {
+  if (!initialized) {
+    return null; // Wait for auth check before deciding
+  }
+
+  if (!user) {
     return <Navigate to="/login" replace />;
   }
 
-  // Render immediately - don't wait for auth
   return <>{element}</>;
 }
 

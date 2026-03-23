@@ -161,7 +161,7 @@ export async function getCurriculumContext(
     const results = await searchCurriculum(subject, grade, topic, 3);
 
     if (results.length === 0) {
-      throw new Error('No curriculum content found. Curriculum database may be unavailable.');
+      return `No specific curriculum content found for "${topic}" in ${subject} grade ${grade}. Please generate questions based on general curriculum knowledge for this grade level.`;
     }
 
     const contextParts = results.map(

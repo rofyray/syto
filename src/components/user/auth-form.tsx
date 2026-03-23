@@ -12,7 +12,7 @@ interface AuthFormProps {
 export function AuthForm({ isLogin = true }: AuthFormProps) {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
-  const [confirmPassword] = useState("");
+  const [confirmPassword, setConfirmPassword] = useState("");
   const [firstName, setFirstName] = useState("");
   const [lastName, setLastName] = useState("");
   const [grade, setGrade] = useState<number>(4);
@@ -85,19 +85,6 @@ export function AuthForm({ isLogin = true }: AuthFormProps) {
         });
         if (error) throw error;
         setSuccess("Signup successful! Check your email for verification.");
-        if (data.user) {
-          const { error: profileError } = await supabase.from("profiles").insert([
-            {
-              id: data.user.id,
-              first_name: firstName,
-              last_name: lastName,
-              username: `${firstName} ${lastName}`.trim(), // Keep username for backward compatibility
-              grade_level: grade,
-              created_at: new Date().toISOString(),
-            },
-          ]);
-          if (profileError) throw profileError;
-        }
         navigate("/dashboard");
       }
     } catch (error: any) {
@@ -236,6 +223,25 @@ export function AuthForm({ isLogin = true }: AuthFormProps) {
                   required
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
+                />
+              </div>
+            )}
+
+            {!isLogin && !showForgotPassword && (
+              <div className="space-y-2">
+                <label
+                  className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70"
+                  htmlFor="confirmPassword"
+                >
+                  Confirm Password
+                </label>
+                <input
+                  className="flex h-11 w-full rounded-xl border border-white/20 dark:border-white/10 bg-white/50 dark:bg-white/5 backdrop-blur-sm px-4 py-2 text-sm placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ghana-green dark:focus:ring-ghana-green-light focus:border-transparent transition-all"
+                  id="confirmPassword"
+                  type="password"
+                  required
+                  value={confirmPassword}
+                  onChange={(e) => setConfirmPassword(e.target.value)}
                 />
               </div>
             )}
