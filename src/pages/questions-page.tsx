@@ -9,6 +9,9 @@ import {
   startExercise,
   type UserAnswer
 } from '@/lib/supabase';
+import { translateTexts } from '@/lib/khaya';
+import { getLanguageByCode } from '@/stores/language-store';
+import { TTSButton } from '@/components/questions/tts-button';
 // Local type for AI-generated questions, as it includes the correct answer.
 interface AIQuestion {
   id?: string;
@@ -17,12 +20,18 @@ interface AIQuestion {
   correct_answer: string;
   difficulty?: 'easy' | 'medium' | 'hard';
 }
+interface QuizTranslations {
+  [questionIndex: number]: {
+    questionText: string;
+    options: string[];
+  };
+}
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import { Label } from '@/components/ui/label';
 import { Button } from '@/components/ui/button';
 import { AppLayout } from '@/components/layout/app-layout';
-import { Loader2, AlertCircle, ChevronLeft, ChevronRight, List, Trophy, CheckCircle2, XCircle, Sparkles, Star, Award, BarChart3, Home, X } from 'lucide-react';
+import { Loader2, AlertCircle, ChevronLeft, ChevronRight, List, Trophy, CheckCircle2, XCircle, Sparkles, Star, Award, BarChart3, Home, X, Languages } from 'lucide-react';
 import { useToast } from '@/components/ui/toast';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 
@@ -35,6 +44,7 @@ export function QuestionsPage() {
   const moduleId = searchParams.get('module_id');
   const topicId = searchParams.get('topic_id');
   const exerciseId = searchParams.get('exercise_id');
+  const langParam = searchParams.get('lang'); // Language set by wizard
   const { profile } = useAuthStore();
   const { showToast } = useToast();
 
@@ -45,6 +55,7 @@ export function QuestionsPage() {
   const [currentQuestionIndex, setCurrentQuestionIndex] = useState(0);
   const [selectedAnswers, setSelectedAnswers] = useState<Record<number, string>>({});
   const [isLoading, setIsLoading] = useState(true);
+  const [loadingMessage, setLoadingMessage] = useState('NAANO is preparing your questions...');
   const [hasError, setHasError] = useState(false);
   const [sessionId] = useState<string>(() => crypto.randomUUID());
   const [startTime] = useState<number>(() => Date.now());
@@ -57,13 +68,22 @@ export function QuestionsPage() {
   const [naanoExplanation, setNaanoExplanation] = useState('');
   const [isLoadingExplanation, setIsLoadingExplanation] = useState(false);
 
+  // Language support state — language is set by wizard via URL param
+  const [translations, setTranslations] = useState<QuizTranslations | null>(null);
+  const [isTranslating, setIsTranslating] = useState(false);
+  const [quizLanguage, setQuizLanguage] = useState<string | null>(langParam);
+  const [showEnglish, setShowEnglish] = useState(false);
+
+  // Language name for loading messages
+  const langName = langParam ? (getLanguageByCode(langParam)?.name || langParam) : '';
+
   useEffect(() => {
     if (topicName && exerciseName && subject && profile) {
       const fetchQuestions = async () => {
         try {
           // Start tracking exercise
           if (moduleId && topicId && exerciseId) {
-            await startExercise(profile.id, moduleId, topicId, exerciseId);
+            startExercise(profile.id, moduleId, topicId, exerciseId).catch(console.error);
           }
 
           const response = await fetch('/api/naano/generate-questions', {
@@ -81,38 +101,90 @@ export function QuestionsPage() {
             }),
           });
 
-          const data = await response.json();
-
-          // Check for NAANO offline error
-          if (!response.ok) {
-            if (data.code === 'CURRICULUM_DATABASE_OFFLINE') {
-              setHasError(true);
-              showToast(
-                'NAANO is currently offline. The curriculum database is unavailable. Please try again in a few minutes.',
-                'error',
-                6000
-              );
-              // Navigate back after showing error
-              setTimeout(() => {
-                navigate(-1);
-              }, 3000);
-              return;
-            }
-            throw new Error(data.error || `HTTP error! status: ${response.status}`);
+          if (!response.ok || !response.body) {
+            throw new Error(`HTTP error! status: ${response.status}`);
           }
 
-          if (data.success && data.questions) {
-            // Transform to match expected format, using real DB IDs from question bank
-            const transformedQuestions = data.questions.map((q: any, index: number) => ({
-              id: q.id || `gen-${sessionId}-${index}`,
-              question_text: q.questionText || q.question_text,
-              options: q.options,
-              correct_answer: q.correctAnswer || q.correct_answer,
-              difficulty: (q.difficulty || 'medium') as 'easy' | 'medium' | 'hard',
-            }));
-            setGeneratedQuestions(transformedQuestions);
-          } else {
-            console.error('Invalid response format:', data);
+          // Consume SSE stream for progressive question delivery
+          const reader = response.body.getReader();
+          const decoder = new TextDecoder();
+          let sseBuffer = '';
+          const receivedQuestions: AIQuestion[] = [];
+          let translationStarted = false;
+
+          while (true) {
+            const { done, value } = await reader.read();
+            if (done) break;
+
+            sseBuffer += decoder.decode(value, { stream: true });
+
+            // Process complete SSE lines
+            const lines = sseBuffer.split('\n');
+            sseBuffer = lines.pop() || ''; // Keep incomplete line in buffer
+
+            for (const line of lines) {
+              if (!line.startsWith('data: ')) continue;
+              const data = line.slice(6).trim();
+              if (data === '[DONE]') continue;
+
+              try {
+                const event = JSON.parse(data);
+
+                switch (event.type) {
+                  case 'status':
+                    if (event.message === 'Checking question pool...') {
+                      setLoadingMessage('NAANO is checking your question bank...');
+                    } else if (event.message === 'Generating questions...') {
+                      setLoadingMessage('NAANO is crafting your quiz...');
+                    }
+                    break;
+
+                  case 'question': {
+                    const q: AIQuestion = {
+                      id: event.question.id || `gen-${sessionId}-${event.index}`,
+                      question_text: event.question.questionText || event.question.question_text,
+                      options: event.question.options,
+                      correct_answer: event.question.correctAnswer || event.question.correct_answer,
+                      difficulty: (event.question.difficulty || 'medium') as 'easy' | 'medium' | 'hard',
+                    };
+                    receivedQuestions.push(q);
+                    setGeneratedQuestions([...receivedQuestions]);
+
+                    // Update message as questions stream in
+                    if (receivedQuestions.length === 1) {
+                      setLoadingMessage('NAANO is picking the best questions...');
+                    }
+
+                    // For English: show quiz immediately on first question
+                    // For local language: keep spinner until translation completes
+                    if (receivedQuestions.length === 1 && !langParam) {
+                      setIsLoading(false);
+                    }
+                    break;
+                  }
+
+                  case 'done':
+                    if (langParam && !translationStarted) {
+                      translationStarted = true;
+                      setLoadingMessage(`NAANO is writing your quiz in ${langName}...`);
+                      translateQuestionsInBackground(receivedQuestions, langParam);
+                    } else if (!langParam) {
+                      setIsLoading(false);
+                    }
+                    break;
+
+                  case 'error':
+                    throw new Error(event.message);
+                }
+              } catch (parseError) {
+                // Skip malformed SSE lines
+                if (parseError instanceof SyntaxError) continue;
+                throw parseError;
+              }
+            }
+          }
+
+          if (receivedQuestions.length === 0) {
             setHasError(true);
             showToast('Failed to generate questions. Please try again.', 'error', 5000);
           }
@@ -253,6 +325,73 @@ export function QuestionsPage() {
     }
   };
 
+  /** Translate questions — single call to backend for all texts with concurrency control */
+  const translateQuestionsInBackground = async (questions: AIQuestion[], langCode: string) => {
+    setIsTranslating(true);
+    try {
+      // Collect all texts: question texts first, then all option texts
+      const questionTexts = questions.map(q => q.question_text);
+      const optionTexts = questions.flatMap(q => q.options);
+      const allTexts = [...questionTexts, ...optionTexts];
+
+      // Single call — backend handles concurrency control internally
+      const translated = await translateTexts(allTexts, langCode);
+
+      // Split results back: first N are questions, rest are options
+      const translatedQuestions = translated.slice(0, questionTexts.length);
+      const translatedOptions = translated.slice(questionTexts.length);
+
+      // Map back to per-question structure
+      const translationMap: QuizTranslations = {};
+      let optIdx = 0;
+      for (let i = 0; i < questions.length; i++) {
+        const numOptions = questions[i].options.length;
+        translationMap[i] = {
+          questionText: translatedQuestions[i],
+          options: translatedOptions.slice(optIdx, optIdx + numOptions),
+        };
+        optIdx += numOptions;
+      }
+
+      setTranslations(translationMap);
+    } catch (error) {
+      console.error('Translation failed:', error);
+      showToast('Translation unavailable. Showing English.', 'error', 4000);
+      setQuizLanguage(null);
+    } finally {
+      setIsTranslating(false);
+      setIsLoading(false);
+    }
+  };
+
+  /** Change language mid-quiz (triggered by the change language button) */
+  const handleChangeLanguage = async (langCode: string | null) => {
+    setQuizLanguage(langCode);
+    setShowEnglish(false);
+    setTranslations(null);
+
+    if (langCode) {
+      await translateQuestionsInBackground(generatedQuestions, langCode);
+    }
+  };
+
+  // Get display text for current question (translated or English)
+  const getQuestionText = (index: number): string => {
+    if (quizLanguage && translations?.[index] && !showEnglish) {
+      return translations[index].questionText;
+    }
+    return generatedQuestions[index]?.question_text || '';
+  };
+
+  const getOptionText = (questionIndex: number, optionIndex: number): string => {
+    if (quizLanguage && translations?.[questionIndex] && !showEnglish) {
+      return translations[questionIndex].options[optionIndex] || generatedQuestions[questionIndex].options[optionIndex];
+    }
+    return generatedQuestions[questionIndex]?.options[optionIndex] || '';
+  };
+
+  const langInfo = quizLanguage ? getLanguageByCode(quizLanguage) : null;
+
   if (isLoading) {
     return (
       <AppLayout>
@@ -266,7 +405,7 @@ export function QuestionsPage() {
           ) : (
             <div className="text-center">
               <h2 className="text-xl font-bold mb-4 text-ghana-green dark:text-ghana-gold">
-                NAANO is preparing your questions...
+                {loadingMessage}
               </h2>
               <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-ghana-green dark:border-ghana-gold mx-auto"></div>
             </div>
@@ -482,25 +621,39 @@ export function QuestionsPage() {
 
               {/* Question by Question Breakdown */}
               <div className="space-y-4">
-                <h3 className="text-lg font-bold mb-3">Question by Question Review</h3>
+                <div className="flex items-center justify-between mb-3">
+                  <h3 className="text-lg font-bold">Question by Question Review</h3>
+                  {quizLanguage && langInfo && (
+                    <button
+                      onClick={() => setShowEnglish(!showEnglish)}
+                      className="flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-semibold transition-all border border-white/20 bg-white/5 hover:bg-white/10 text-gray-300 hover:text-white"
+                    >
+                      <Languages className="h-3.5 w-3.5" />
+                      {showEnglish ? 'EN' : langInfo.name}
+                    </button>
+                  )}
+                </div>
                 {generatedQuestions.map((question, index) => {
                   const userAnswer = selectedAnswers[index];
-                  const isCorrect = userAnswer === question.correct_answer;
+                  const isCorrectAnswer = userAnswer === question.correct_answer;
+                  // Find index of user's answer and correct answer in options for translation lookup
+                  const userAnswerIdx = question.options.indexOf(userAnswer);
+                  const correctAnswerIdx = question.options.indexOf(question.correct_answer);
 
                   return (
                     <div
                       key={index}
                       className={`liquid-glass-option p-4 rounded-lg border transition-all ${
-                        isCorrect
+                        isCorrectAnswer
                           ? 'border-emerald-400/50'
                           : 'border-red-400/50'
                       }`}
                     >
                       <div className="flex items-start gap-3">
                         <div className={`flex-shrink-0 w-8 h-8 rounded-full flex items-center justify-center ${
-                          isCorrect ? 'bg-emerald-500' : 'bg-red-500'
+                          isCorrectAnswer ? 'bg-emerald-500' : 'bg-red-500'
                         }`}>
-                          {isCorrect ? (
+                          {isCorrectAnswer ? (
                             <CheckCircle2 className="h-5 w-5 text-white" />
                           ) : (
                             <XCircle className="h-5 w-5 text-white" />
@@ -508,20 +661,26 @@ export function QuestionsPage() {
                         </div>
                         <div className="flex-1">
                           <div className="font-semibold mb-2">
-                            Question {index + 1}: {question.question_text}
+                            Question {index + 1}: {getQuestionText(index)}
                           </div>
                           <div className="text-sm space-y-1">
                             <div className="flex items-center gap-2">
                               <span className="text-gray-400">Your answer:</span>
-                              <span className={isCorrect ? 'text-emerald-400 font-semibold' : 'text-red-400 font-semibold'}>
-                                {userAnswer || 'Not answered'}
+                              <span className={isCorrectAnswer ? 'text-emerald-400 font-semibold' : 'text-red-400 font-semibold'}>
+                                {userAnswer
+                                  ? (quizLanguage && translations?.[index] && !showEnglish && userAnswerIdx >= 0
+                                      ? translations[index].options[userAnswerIdx]
+                                      : userAnswer)
+                                  : 'Not answered'}
                               </span>
                             </div>
-                            {!isCorrect && (
+                            {!isCorrectAnswer && (
                               <div className="flex items-center gap-2">
                                 <span className="text-gray-400">Correct answer:</span>
                                 <span className="text-emerald-400 font-semibold">
-                                  {question.correct_answer}
+                                  {quizLanguage && translations?.[index] && !showEnglish && correctAnswerIdx >= 0
+                                    ? translations[index].options[correctAnswerIdx]
+                                    : question.correct_answer}
                                 </span>
                               </div>
                             )}
@@ -586,6 +745,16 @@ export function QuestionsPage() {
 
   return (
     <AppLayout>
+      {/* Translating indicator — only for mid-quiz language changes, not initial load */}
+      {isTranslating && !isLoading && (
+        <div className="fixed top-4 right-4 z-50 flex items-center gap-2 bg-ghana-gold/20 border border-ghana-gold/40 rounded-lg px-3 py-2 backdrop-blur-sm">
+          <Loader2 className="h-4 w-4 animate-spin text-ghana-gold" />
+          <span className="text-sm text-ghana-gold font-medium">
+            Translating to {getLanguageByCode(quizLanguage || '')?.name || quizLanguage}...
+          </span>
+        </div>
+      )}
+
       <div className="container mx-auto p-4 flex flex-col justify-center items-center min-h-screen relative">
         {/* Main Quiz Card */}
         <div className="w-full max-w-3xl mb-4">
@@ -596,16 +765,43 @@ export function QuestionsPage() {
                   <Sparkles className={`h-6 w-6 ${isMathematics ? 'text-amber-400' : 'text-emerald-400'}`} />
                   Question {currentQuestionIndex + 1} of {generatedQuestions.length}
                 </span>
-                {/* Score Badge */}
-                <div className="flex items-center gap-2 liquid-glass-accent px-4 py-2 rounded-full shadow-lg border border-amber-300/30 shadow-amber-500/30">
-                  <Trophy className="h-5 w-5 text-amber-200" />
-                  <span className="font-bold text-lg text-white">{score}</span>
+                <div className="flex items-center gap-2">
+                  {/* Language Toggle */}
+                  {quizLanguage && langInfo && (
+                    <button
+                      onClick={() => setShowEnglish(!showEnglish)}
+                      disabled={isTranslating}
+                      className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-semibold transition-all border border-white/20 bg-white/5 text-gray-300 ${
+                        isTranslating ? 'opacity-50 cursor-not-allowed' : 'hover:bg-white/10 hover:text-white'
+                      }`}
+                      title={isTranslating ? 'Translation in progress...' : (showEnglish ? `Switch to ${langInfo.name}` : 'Switch to English')}
+                    >
+                      <Languages className="h-3.5 w-3.5" />
+                      {showEnglish ? 'EN' : langInfo.name}
+                    </button>
+                  )}
+                  {/* Score Badge */}
+                  <div className="flex items-center gap-2 liquid-glass-accent px-4 py-2 rounded-full shadow-lg border border-amber-300/30 shadow-amber-500/30">
+                    <Trophy className="h-5 w-5 text-amber-200" />
+                    <span className="font-bold text-lg text-white">{score}</span>
+                  </div>
                 </div>
               </CardTitle>
             </CardHeader>
             <CardContent className="p-8 relative">
               {/* Question Text */}
-              <p className="text-xl mb-8 font-medium leading-relaxed">{currentQuestion.question_text}</p>
+              <div className="mb-8">
+                <div className="flex items-start gap-2">
+                  <p className="text-xl font-medium leading-relaxed flex-1">{getQuestionText(currentQuestionIndex)}</p>
+                  {quizLanguage && langInfo && !showEnglish && (
+                    <TTSButton
+                      text={getQuestionText(currentQuestionIndex)}
+                      language={langInfo.ttsCode}
+                      size="md"
+                    />
+                  )}
+                </div>
+              </div>
 
               {/* Answer Options */}
               <RadioGroup
@@ -634,8 +830,14 @@ export function QuestionsPage() {
                       htmlFor={`q${currentQuestionIndex}-option-${index}`}
                       className="flex-1 cursor-pointer text-base font-medium"
                     >
-                      {option}
+                      {getOptionText(currentQuestionIndex, index)}
                     </Label>
+                    {quizLanguage && langInfo && !showEnglish && (
+                      <TTSButton
+                        text={getOptionText(currentQuestionIndex, index)}
+                        language={langInfo.ttsCode}
+                      />
+                    )}
                   </div>
                 ))}
               </RadioGroup>

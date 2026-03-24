@@ -142,6 +142,27 @@ export async function setCachedSearchResults<T>(
 }
 
 // ============================================================================
+// TRANSLATION CACHE (Khaya AI)
+// ============================================================================
+
+const TRANSLATION_TTL = 86400; // 24 hours
+
+function translationKey(text: string, lang: string): string {
+  const hash = Buffer.from(text).toString('base64url').slice(0, 64);
+  return `trans:${lang}:${hash}`;
+}
+
+export async function getCachedTranslation(text: string, lang: string): Promise<string | null> {
+  return cacheGet<string>(translationKey(text, lang));
+}
+
+export async function setCachedTranslation(text: string, lang: string, translation: string): Promise<void> {
+  cacheSet(translationKey(text, lang), translation, TRANSLATION_TTL).catch(err =>
+    console.error('Translation cache set error:', err)
+  );
+}
+
+// ============================================================================
 // GENERIC REQUEST CACHE (for middleware)
 // ============================================================================
 

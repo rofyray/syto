@@ -49,6 +49,13 @@ export class NAANOAgent {
   }
 
   /**
+   * Get the appropriate max_tokens for a given request type
+   */
+  private getMaxTokens(requestType: NAANORequest['type']): number {
+    return NAANO_CONFIG.maxTokensByType[requestType] || NAANO_CONFIG.maxTokens;
+  }
+
+  /**
    * Get system prompt as content blocks with cache_control
    * Base prompt is cached (ephemeral, 5-min TTL) to reduce input token costs
    */
@@ -191,9 +198,11 @@ export class NAANOAgent {
     const model = this.getModel(requestType);
     const systemBlocks = this.getSystemPromptBlocks(requestType);
 
+    const maxTokens = this.getMaxTokens(requestType);
+
     const response = await this.client.messages.create({
       model,
-      max_tokens: NAANO_CONFIG.maxTokens,
+      max_tokens: maxTokens,
       temperature: NAANO_CONFIG.temperature,
       system: systemBlocks,
       messages: [{ role: 'user', content }],
@@ -214,6 +223,30 @@ export class NAANOAgent {
         toolsUsed: [],
       },
     };
+  }
+
+  /**
+   * Generate a response without tools, streaming text chunks.
+   * Used for question generation to enable progressive delivery.
+   */
+  async *generateDirectStream(content: string, requestType: NAANORequest['type'] = 'generate_questions'): AsyncGenerator<string> {
+    const model = this.getModel(requestType);
+    const systemBlocks = this.getSystemPromptBlocks(requestType);
+    const maxTokens = this.getMaxTokens(requestType);
+
+    const stream = this.client.messages.stream({
+      model,
+      max_tokens: maxTokens,
+      temperature: NAANO_CONFIG.temperature,
+      system: systemBlocks,
+      messages: [{ role: 'user', content }],
+    });
+
+    for await (const event of stream) {
+      if (event.type === 'content_block_delta' && event.delta.type === 'text_delta') {
+        yield event.delta.text;
+      }
+    }
   }
 
   /**

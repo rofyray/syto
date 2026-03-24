@@ -1,7 +1,7 @@
 import express, { Request, Response } from 'express';
 import { getNAANOAgent, createNAANOAgent } from '../../lib/naano/index.js';
 import { NAANORequestSchema } from '../../lib/naano/types.js';
-import { getQuestionsForStudent } from '../../lib/question-bank.js';
+import { getQuestionsForStudent, streamQuestionsForStudent } from '../../lib/question-bank.js';
 import { z } from 'zod';
 
 const router = express.Router();
@@ -90,22 +90,27 @@ router.post('/chat', async (req: Request, res: Response) => {
 
 /**
  * POST /api/naano/generate-questions
- * Generate curriculum-aligned questions using the shared question bank.
+ * Stream curriculum-aligned questions using SSE for progressive delivery.
  * Pulls from existing pool first; only calls LLM if not enough questions exist.
  */
 router.post('/generate-questions', async (req: Request, res: Response) => {
+  const { topic, subject, grade, difficulty, count, userId } = req.body;
+
+  if (!topic || !subject || !grade) {
+    res.status(400).json({
+      error: 'Missing required fields: topic, subject, grade',
+    });
+    return;
+  }
+
+  // Set up Server-Sent Events for streaming
+  res.setHeader('Content-Type', 'text/event-stream');
+  res.setHeader('Cache-Control', 'no-cache');
+  res.setHeader('Connection', 'keep-alive');
+  res.setHeader('X-Accel-Buffering', 'no');
+
   try {
-    const { topic, subject, grade, difficulty, count, userId } = req.body;
-
-    if (!topic || !subject || !grade) {
-      res.status(400).json({
-        error: 'Missing required fields: topic, subject, grade',
-      });
-      return;
-    }
-
-    // Use question bank: pool lookup first, LLM generation only if needed
-    const result = await getQuestionsForStudent({
+    const stream = streamQuestionsForStudent({
       userId: userId || (req as any).userId,
       topic,
       subject,
@@ -114,59 +119,18 @@ router.post('/generate-questions', async (req: Request, res: Response) => {
       count: count || 5,
     });
 
-    // Transform DB format to API response format for frontend compatibility
-    const questions = result.questions.map((q) => ({
-      id: q.id,
-      questionText: q.question_text,
-      options: q.options,
-      correctAnswer: q.correct_answer,
-      explanation: q.explanation,
-      difficulty: q.difficulty,
-    }));
+    for await (const event of stream) {
+      res.write(`data: ${JSON.stringify(event)}\n\n`);
+    }
 
-    res.json({
-      success: true,
-      questions,
-      metadata: {
-        ...result.metadata,
-        fromPool: result.fromPool,
-        newlyGenerated: result.newlyGenerated,
-      },
-    });
+    res.write('data: [DONE]\n\n');
+    res.end();
   } catch (error: any) {
-    console.error('Error generating questions:', error);
-
-    if (error instanceof z.ZodError) {
-      res.status(400).json({
-        error: 'Validation error',
-        details: error.errors,
-      });
-      return;
-    }
-
-    // Check if it's an API timeout error
-    if (error.name === 'APIConnectionTimeoutError' || error.message?.includes('timed out')) {
-      res.status(504).json({
-        error: 'Question generation timed out',
-        message: 'NAANO is taking longer than expected. Please try again.',
-        code: 'GENERATION_TIMEOUT',
-      });
-      return;
-    }
-
-    // Check if it's a curriculum database error
-    if (error.message?.includes('CURRICULUM_DATABASE_OFFLINE')) {
-      res.status(503).json({
-        error: 'NAANO is currently offline',
-        message: 'The curriculum database is unavailable right now. Please try again in a few minutes.',
-        code: 'CURRICULUM_DATABASE_OFFLINE',
-      });
-      return;
-    }
-
-    res.status(500).json({
-      error: error.message || 'Internal server error',
-    });
+    console.error('Error streaming questions:', error);
+    const friendlyMessage = getUserFriendlyErrorMessage(error);
+    res.write(`data: ${JSON.stringify({ type: 'error', message: friendlyMessage })}\n\n`);
+    res.write('data: [DONE]\n\n');
+    res.end();
   }
 });
 

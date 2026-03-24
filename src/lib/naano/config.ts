@@ -12,6 +12,12 @@ export const NAANO_CONFIG = {
     fast: 'claude-haiku-4-5-20251001',
   },
   maxTokens: 4096,
+  maxTokensByType: {
+    generate_questions: 2048,  // 5 MCQs need ~1200-1500 tokens
+    validate_answer: 4096,
+    chat: 4096,
+    explain_concept: 4096,
+  } as Record<string, number>,
   temperature: 0.7,
 
   // Tool configuration

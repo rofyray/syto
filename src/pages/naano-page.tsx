@@ -15,10 +15,12 @@ export function NAANOPage() {
   const [isRecording, setIsRecording] = useState(false);
   const [isProcessing, setIsProcessing] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
+  const greetingSentRef = useRef(false);
 
-  // Initial greeting — only if no persisted messages
+  // Initial greeting — only if no persisted messages (ref prevents StrictMode double-fire)
   useEffect(() => {
-    if (messages.length === 0) {
+    if (messages.length === 0 && !greetingSentRef.current) {
+      greetingSentRef.current = true;
       addMessage({
         id: Date.now().toString(),
         content: `Hello ${profile?.username || "there"}! I'm NAANO, your learning assistant. How can I help you with your English or Mathematics lessons today?`,

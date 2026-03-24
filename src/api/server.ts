@@ -7,6 +7,7 @@ import { optionalAuth, logUserActivity } from './middleware/auth-middleware.js';
 import { cacheMiddleware, getCacheStats, warmCache } from './middleware/cache.js';
 import { sanitizeInput } from './middleware/validation.js';
 import naanoRoutes from './routes/naano-routes.js';
+import khayaRoutes from './routes/khaya-routes.js';
 
 /**
  * NAANO AI API Server
@@ -70,6 +71,13 @@ app.use('/api/naano',
   optionalAuth,           // Optional authentication
   logUserActivity,        // Log user activity
   naanoRoutes            // Main NAANO routes
+);
+
+// Khaya AI language translation and TTS routes
+app.use('/api/khaya',
+  optionalAuth,
+  logUserActivity,
+  khayaRoutes
 );
 
 

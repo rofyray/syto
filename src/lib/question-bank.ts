@@ -136,6 +136,288 @@ export async function getQuestionsForStudent(
   };
 }
 
+// --- Streaming question generation ---
+
+export type StreamEvent =
+  | { type: 'status'; message: string }
+  | { type: 'question'; question: TransformedQuestion; index: number }
+  | { type: 'done'; metadata: { fromPool: number; newlyGenerated: number } }
+  | { type: 'error'; message: string };
+
+export interface TransformedQuestion {
+  id: string;
+  questionText: string;
+  options: string[];
+  correctAnswer: string;
+  explanation: string;
+  difficulty: string;
+}
+
+/**
+ * Incremental JSON parser that extracts complete question objects from a streaming
+ * JSON response. Tracks string literals and brace depth to reliably detect when
+ * a top-level object within the "questions" array is complete.
+ */
+class IncrementalQuestionParser {
+  private buffer = '';
+  private inArray = false;
+  private inString = false;
+  private escaped = false;
+  private braceDepth = 0;
+  private currentObject = '';
+  private parsedQuestions: any[] = [];
+
+  addChunk(chunk: string): any[] {
+    const newQuestions: any[] = [];
+
+    for (const char of chunk) {
+      this.buffer += char;
+
+      // Handle string state (skip content inside strings)
+      if (this.escaped) {
+        this.escaped = false;
+        if (this.braceDepth > 0) this.currentObject += char;
+        continue;
+      }
+      if (char === '\\' && this.inString) {
+        this.escaped = true;
+        if (this.braceDepth > 0) this.currentObject += char;
+        continue;
+      }
+      if (char === '"') {
+        this.inString = !this.inString;
+        if (this.braceDepth > 0) this.currentObject += char;
+        continue;
+      }
+
+      // Skip content inside strings
+      if (this.inString) {
+        if (this.braceDepth > 0) this.currentObject += char;
+        continue;
+      }
+
+      // Detect the start of the questions array
+      if (!this.inArray && char === '[') {
+        // Check if we've seen "questions" before this bracket
+        if (this.buffer.includes('"questions"')) {
+          this.inArray = true;
+        }
+        continue;
+      }
+
+      if (!this.inArray) continue;
+
+      // Track braces within the array
+      if (char === '{') {
+        if (this.braceDepth === 0) this.currentObject = '';
+        this.braceDepth++;
+        this.currentObject += char;
+      } else if (char === '}') {
+        this.braceDepth--;
+        this.currentObject += char;
+        if (this.braceDepth === 0 && this.currentObject.trim()) {
+          // Complete question object
+          try {
+            const q = JSON.parse(this.currentObject);
+            newQuestions.push(q);
+            this.parsedQuestions.push(q);
+          } catch {
+            // Incomplete or malformed — skip
+          }
+          this.currentObject = '';
+        }
+      } else if (this.braceDepth > 0) {
+        this.currentObject += char;
+      } else if (char === ']') {
+        // End of questions array
+        this.inArray = false;
+      }
+    }
+
+    return newQuestions;
+  }
+
+  getAllQuestions(): any[] {
+    return this.parsedQuestions;
+  }
+}
+
+function transformQuestion(q: any, id?: string): TransformedQuestion {
+  return {
+    id: id || q.id || `temp-${crypto.randomUUID()}`,
+    questionText: q.question_text || q.questionText,
+    options: q.options,
+    correctAnswer: q.correct_answer || q.correctAnswer,
+    explanation: q.explanation || '',
+    difficulty: q.difficulty || 'medium',
+  };
+}
+
+function buildGenerationPrompt(params: {
+  topic: string;
+  subject: string;
+  grade: number;
+  difficulty: string;
+  count: number;
+  curriculumContext?: string;
+}): string {
+  const { topic, subject, grade, difficulty, count, curriculumContext } = params;
+  return `${curriculumContext ? `## Ghana Curriculum Reference\n${curriculumContext}\n\n` : ''}Generate ${count} ${difficulty} multiple-choice questions about "${topic}" for grade ${grade} ${subject}.
+
+Each question MUST include Ghanaian cultural context (names, locations, foods, currency).
+Return ONLY valid JSON in this exact format:
+
+{
+  "questions": [
+    {
+      "id": "q1",
+      "questionText": "...",
+      "options": ["A. ...", "B. ...", "C. ...", "D. ..."],
+      "correctAnswer": "A. ...",
+      "explanation": "...",
+      "difficulty": "${difficulty}",
+      "culturalContext": "Description of Ghanaian elements used"
+    }
+  ]
+}`;
+}
+
+/**
+ * Stream questions for a student via an async generator.
+ * Yields status updates and individual questions as they become available.
+ * Pool questions are yielded immediately; LLM-generated questions stream progressively.
+ */
+export async function* streamQuestionsForStudent(
+  params: QuestionBankParams
+): AsyncGenerator<StreamEvent> {
+  const { userId, topic, subject, grade, difficulty = 'medium', count = 5 } = params;
+
+  yield { type: 'status', message: 'Checking question pool...' };
+
+  // 1. Pool lookup + curriculum pre-fetch in parallel
+  const [poolResult, curriculumContext] = await Promise.all([
+    getQuestionPool(subject, grade, topic, difficulty).catch(err => {
+      console.warn('Question pool lookup failed:', err);
+      return [] as Question[];
+    }),
+    getCurriculumContext(
+      subject as 'mathematics' | 'english',
+      grade,
+      topic
+    ).catch(() => ''),
+  ]);
+
+  // 2. Filter by student's correct answers
+  let correctIds: string[] = [];
+  if (userId && poolResult.length > 0) {
+    try {
+      correctIds = await getStudentCorrectQuestionIds(userId, poolResult.map(q => q.id));
+    } catch (err) {
+      console.warn('Student answer lookup failed:', err);
+    }
+  }
+
+  const available = poolResult.filter(q => !correctIds.includes(q.id));
+
+  // 3. Fast path: yield pool questions individually
+  if (available.length >= count) {
+    const selected = shuffle(available).slice(0, count);
+    for (let i = 0; i < selected.length; i++) {
+      yield { type: 'question', question: transformQuestion(selected[i], selected[i].id), index: i };
+    }
+    yield { type: 'done', metadata: { fromPool: count, newlyGenerated: 0 } };
+    return;
+  }
+
+  // Yield available pool questions first
+  const poolQuestions = shuffle(available);
+  for (let i = 0; i < poolQuestions.length; i++) {
+    yield { type: 'question', question: transformQuestion(poolQuestions[i], poolQuestions[i].id), index: i };
+  }
+
+  // 4. Slow path: stream from LLM for remaining questions
+  const needed = count - poolQuestions.length;
+  yield { type: 'status', message: 'Generating questions...' };
+
+  try {
+    const prompt = buildGenerationPrompt({
+      topic, subject, grade, difficulty, count: needed, curriculumContext,
+    });
+
+    const naano = createNAANOAgent();
+    const parser = new IncrementalQuestionParser();
+    let questionIndex = poolQuestions.length;
+    let fullText = '';
+
+    for await (const chunk of naano.generateDirectStream(prompt, 'generate_questions')) {
+      fullText += chunk;
+      const newQuestions = parser.addChunk(chunk);
+      for (const q of newQuestions) {
+        const transformed = transformQuestion(q);
+        yield { type: 'question', question: transformed, index: questionIndex++ };
+      }
+    }
+
+    // If parser didn't extract all questions (e.g. malformed JSON), try fallback parse
+    if (parser.getAllQuestions().length === 0) {
+      try {
+        const jsonMatch = fullText.match(/\{[\s\S]*\}/);
+        if (jsonMatch) {
+          const parsed = JSON.parse(jsonMatch[0]);
+          const rawQuestions = parsed.questions || parsed;
+          const arr = Array.isArray(rawQuestions) ? rawQuestions : [rawQuestions];
+          for (const q of arr) {
+            const transformed = transformQuestion(q);
+            yield { type: 'question', question: transformed, index: questionIndex++ };
+          }
+        }
+      } catch {
+        console.error('Fallback JSON parse also failed');
+      }
+    }
+
+    const allGenerated = parser.getAllQuestions();
+    const newlyGenerated = questionIndex - poolQuestions.length;
+
+    yield { type: 'done', metadata: { fromPool: poolQuestions.length, newlyGenerated } };
+
+    // Background: save to pool + log generation (non-blocking)
+    if (allGenerated.length > 0) {
+      const questionsToSave = allGenerated.map(q => ({
+        question_text: q.questionText || q.question_text,
+        options: q.options,
+        correct_answer: q.correctAnswer || q.correct_answer,
+        explanation: q.explanation || '',
+        difficulty,
+        topic_name: topic,
+        subject,
+        grade_level: grade,
+        cultural_context: q.culturalContext || q.cultural_context,
+        curriculum_alignment: q.curriculumAlignment || q.curriculum_alignment,
+        generation_hash: generateQuestionHash(subject, grade, topic, q.questionText || q.question_text),
+      }));
+
+      // Dedup and save in background
+      const hashes = questionsToSave.map(q => q.generation_hash);
+      getExistingQuestionHashes(hashes)
+        .then(existingHashes => {
+          const newQ = questionsToSave.filter(q => !existingHashes.includes(q.generation_hash));
+          if (newQ.length > 0) return savePoolQuestions(newQ);
+        })
+        .catch(err => console.error('Background pool save failed:', err));
+
+      logGeneration({
+        topic, subject, grade, difficulty, count: needed,
+        questionIds: [], tokensUsed: undefined,
+        processingTime: Date.now() - Date.now(), success: true,
+      }).catch(err => console.error('Failed to log generation:', err));
+    }
+  } catch (error) {
+    console.error('Error streaming questions:', error);
+    yield { type: 'error', message: error instanceof Error ? error.message : 'Unknown error' };
+  }
+}
+
 /**
  * Generate new questions via NAANO LLM and save to the shared pool.
  * Uses pre-fetched curriculum context to avoid an extra LLM round-trip.
@@ -220,11 +502,8 @@ Return ONLY valid JSON in this exact format:
       return [];
     }
 
-    // Save to pool
-    const saved = await savePoolQuestions(newQuestions);
-
-    // If save failed (RLS, network, etc.), fall back to in-memory questions
-    const questionsToReturn = saved.length > 0 ? saved : newQuestions.map((q, i) => ({
+    // Return questions immediately with temp IDs (don't block on DB save)
+    const questionsToReturn = newQuestions.map((q, i) => ({
       id: `temp-${crypto.randomUUID()}`,
       question_text: q.question_text,
       options: q.options,
@@ -237,6 +516,9 @@ Return ONLY valid JSON in this exact format:
       order_index: i,
       created_at: new Date().toISOString(),
     } as Question));
+
+    // Save to pool in background (non-blocking) — questions are already returned to user
+    savePoolQuestions(newQuestions).catch(err => console.error('Background pool save failed:', err));
 
     // Log the generation (non-blocking)
     const processingTime = Date.now() - startTime;

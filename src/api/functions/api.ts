@@ -8,6 +8,7 @@ import { authenticateUser, optionalAuth, logUserActivity } from '../middleware/a
 import { cacheMiddleware, smartCache } from '../middleware/cache.js';
 import { sanitizeInput } from '../middleware/validation.js';
 import naanoRoutes from '../routes/naano-routes.js';
+import khayaRoutes from '../routes/khaya-routes.js';
 
 // Initialize Express app
 const app = express();
@@ -46,6 +47,13 @@ app.use('/api/naano',
   logUserActivity as express.RequestHandler,        // Log user activity
   smartCache as express.RequestHandler,            // Smart caching based on content type
   naanoRoutes            // Main NAANO routes
+);
+
+// Khaya AI language translation and TTS routes
+app.use('/api/khaya',
+  optionalAuth as express.RequestHandler,
+  logUserActivity as express.RequestHandler,
+  khayaRoutes
 );
 
 // Protected routes that require authentication

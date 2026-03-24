@@ -3,7 +3,9 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { getModulesWithChildren, type Module, type Topic, type Exercise } from '@/lib/supabase';
 import { useAuthStore } from '@/stores/auth-store';
+import { useLanguageStore } from '@/stores/language-store';
 import { useNavigate } from 'react-router-dom';
+import { LanguagePicker } from '@/components/questions/language-picker';
 
 interface ModuleSelectionWizardProps {
   subject: 'english' | 'mathematics';
@@ -15,10 +17,13 @@ export function ModuleSelectionWizard({ subject, onClose }: ModuleSelectionWizar
   const [modules, setModules] = useState<Module[]>([]);
   const [selectedModule, setSelectedModule] = useState<Module | null>(null);
   const [selectedTopic, setSelectedTopic] = useState<Topic | null>(null);
+  // Store navigation params for the language step to use
+  const [pendingNavParams, setPendingNavParams] = useState<string | null>(null);
 
   const [loading, setLoading] = useState(true);
 
   const { profile } = useAuthStore();
+  const { preferredLanguage, matchesContext, setPreferredLanguage } = useLanguageStore();
   const navigate = useNavigate();
 
   // Single fetch: load all modules with their topics and exercises
@@ -41,6 +46,39 @@ export function ModuleSelectionWizard({ subject, onClose }: ModuleSelectionWizar
     fetchAll();
   }, [subject, profile]);
 
+  const buildNavUrl = (params: {
+    topicName?: string;
+    exerciseName?: string;
+    moduleId?: string;
+    topicId?: string;
+    exerciseId?: string;
+  }) => {
+    const parts = [`/questions?subject=${subject}`];
+    if (params.topicName) parts.push(`&topic_name=${params.topicName}`);
+    if (params.exerciseName) parts.push(`&exercise_name=${params.exerciseName}`);
+    if (params.moduleId) parts.push(`&module_id=${params.moduleId}`);
+    if (params.topicId) parts.push(`&topic_id=${params.topicId}`);
+    if (params.exerciseId) parts.push(`&exercise_id=${params.exerciseId}`);
+    return parts.join('');
+  };
+
+  const navigateWithLang = (baseUrl: string, langCode: string | null) => {
+    const langParam = langCode ? `&lang=${langCode}` : '';
+    navigate(baseUrl + langParam);
+    onClose();
+  };
+
+  const goToLanguageStepOrNavigate = (navUrl: string) => {
+    if (selectedModule && matchesContext(subject, selectedModule.id)) {
+      // Same subject+module: auto-advance with saved preference
+      navigateWithLang(navUrl, preferredLanguage);
+    } else {
+      // New module or subject: show language picker
+      setPendingNavParams(navUrl);
+      setStep(100); // Language step
+    }
+  };
+
   const handleModuleSelect = (module: Module) => {
     setSelectedModule(module);
     setStep(2);
@@ -50,16 +88,37 @@ export function ModuleSelectionWizard({ subject, onClose }: ModuleSelectionWizar
     setSelectedTopic(topic);
     const exercises = topic.exercises || [];
     if (exercises.length === 0) {
-      navigate(`/questions?subject=${subject}&topic_name=${topic.title}&exercise_name=${topic.title}&module_id=${selectedModule?.id}&topic_id=${topic.id}`);
-      onClose();
+      const navUrl = buildNavUrl({
+        topicName: topic.title,
+        exerciseName: topic.title,
+        moduleId: selectedModule?.id,
+        topicId: topic.id,
+      });
+      goToLanguageStepOrNavigate(navUrl);
     } else {
       setStep(3);
     }
   };
 
   const handleExerciseSelect = (exercise: Exercise) => {
-    navigate(`/questions?subject=${subject}&topic_name=${selectedTopic?.title}&exercise_name=${exercise.title}&module_id=${selectedModule?.id}&topic_id=${selectedTopic?.id}&exercise_id=${exercise.id}`);
-    onClose();
+    const navUrl = buildNavUrl({
+      topicName: selectedTopic?.title,
+      exerciseName: exercise.title,
+      moduleId: selectedModule?.id,
+      topicId: selectedTopic?.id,
+      exerciseId: exercise.id,
+    });
+    goToLanguageStepOrNavigate(navUrl);
+  };
+
+  const handleLanguageSelect = (langCode: string | null) => {
+    // Save language with subject+module context so it auto-applies for this module only
+    if (selectedModule) {
+      setPreferredLanguage(langCode, { subject, moduleId: selectedModule.id });
+    }
+    if (pendingNavParams) {
+      navigateWithLang(pendingNavParams, langCode);
+    }
   };
 
   const topics = selectedModule?.topics || [];
@@ -118,8 +177,12 @@ export function ModuleSelectionWizard({ subject, onClose }: ModuleSelectionWizar
                 </p>
                 <Button
                   onClick={() => {
-                    navigate(`/questions?subject=${subject}&topic_name=${selectedModule?.title}&exercise_name=${selectedModule?.title}&module_id=${selectedModule?.id}`);
-                    onClose();
+                    const navUrl = buildNavUrl({
+                      topicName: selectedModule?.title,
+                      exerciseName: selectedModule?.title,
+                      moduleId: selectedModule?.id,
+                    });
+                    goToLanguageStepOrNavigate(navUrl);
                   }}
                 >
                   Start Learning
@@ -143,6 +206,16 @@ export function ModuleSelectionWizard({ subject, onClose }: ModuleSelectionWizar
             </div>
           </div>
         );
+      case 100: // Language selection step
+        return (
+          <div>
+            <h3 className="text-xl font-semibold mb-4">Choose Quiz Language</h3>
+            <LanguagePicker
+              onSelect={handleLanguageSelect}
+              inline
+            />
+          </div>
+        );
       default:
         return <div>Selection Complete</div>;
     }
@@ -153,7 +226,15 @@ export function ModuleSelectionWizard({ subject, onClose }: ModuleSelectionWizar
       <div className="flex items-center justify-between mb-6">
         <h2 className="text-2xl font-bold">Start a New Session</h2>
         {step > 1 && (
-          <Button variant="outline" onClick={() => setStep(step - 1)}>
+          <Button variant="outline" onClick={() => {
+            if (step === 100) {
+              // Go back from language step to the previous content step
+              const exercises = selectedTopic?.exercises || [];
+              setStep(exercises.length > 0 ? 3 : 2);
+            } else {
+              setStep(step - 1);
+            }
+          }}>
             Back
           </Button>
         )}
