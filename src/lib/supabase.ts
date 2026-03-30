@@ -25,6 +25,19 @@ if (!supabaseAnonKey) {
 
 export const supabase = createClient(supabaseUrl, supabaseAnonKey);
 
+// Server-side admin client using service role key (bypasses RLS).
+// Only available in Node.js (API) environment — never used in the browser.
+let supabaseAdmin = supabase; // fallback to anon if no service role key
+if (typeof window === 'undefined') {
+  const serviceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY || '';
+  if (serviceRoleKey && supabaseUrl) {
+    supabaseAdmin = createClient(supabaseUrl, serviceRoleKey);
+  } else {
+    console.warn('Missing SUPABASE_SERVICE_ROLE_KEY — server-side writes will use anon key and may fail RLS checks');
+  }
+}
+export { supabaseAdmin };
+
 export type UserProfile = {
   id: string;
   username: string;
@@ -326,7 +339,7 @@ export async function saveExercise(exercise: Omit<Exercise, 'questions'>): Promi
 }
 
 export async function saveQuestion(question: Question): Promise<string | null> {
-  const { data, error } = await supabase
+  const { data, error } = await supabaseAdmin
     .from('questions')
     .insert(question)
     .select('id')
@@ -341,7 +354,7 @@ export async function saveQuestion(question: Question): Promise<string | null> {
 }
 
 export async function saveQuestions(questions: Question[]): Promise<boolean> {
-  const { error } = await supabase
+  const { error } = await supabaseAdmin
     .from('questions')
     .insert(questions);
   
@@ -493,7 +506,7 @@ export async function savePoolQuestions(
     generation_hash: q.generation_hash,
   }));
 
-  const { data, error } = await supabase
+  const { data, error } = await supabaseAdmin
     .from('questions')
     .insert(records)
     .select();

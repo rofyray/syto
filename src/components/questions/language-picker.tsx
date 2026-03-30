@@ -27,7 +27,7 @@ export function LanguagePicker({ onSelect, isTranslating = false, inline = false
         </h2>
       </div>
       <p className={`text-sm text-center mb-6 ${inline ? 'text-muted-foreground' : 'text-gray-300'}`}>
-        Select a language to translate the quiz questions
+        Select your language for the quiz
       </p>
 
       <div className="grid grid-cols-2 gap-2 mb-6">

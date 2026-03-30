@@ -66,7 +66,10 @@ export function QuestionsPage() {
   const [questionTries, setQuestionTries] = useState<Record<number, number>>({});
   const [showNaanoExplanation, setShowNaanoExplanation] = useState(false);
   const [naanoExplanation, setNaanoExplanation] = useState('');
+  const [naanoExplanationEnglish, setNaanoExplanationEnglish] = useState('');
   const [isLoadingExplanation, setIsLoadingExplanation] = useState(false);
+  const [explanationLoadingMessage, setExplanationLoadingMessage] = useState('NAANO is thinking...');
+  const [showExplanationInEnglish, setShowExplanationInEnglish] = useState(false);
 
   // Language support state — language is set by wizard via URL param
   const [translations, setTranslations] = useState<QuizTranslations | null>(null);
@@ -77,9 +80,28 @@ export function QuestionsPage() {
   // Language name for loading messages
   const langName = langParam ? (getLanguageByCode(langParam)?.name || langParam) : '';
 
+  // Alternating loading messages for explanation modal
+  useEffect(() => {
+    if (!isLoadingExplanation) return;
+    const messages = [
+      'NAANO is thinking...',
+      'Preparing your explanation...',
+      'Almost there...',
+      ...(quizLanguage ? [`NAANO is writing in ${langName}...`] : []),
+    ];
+    let index = 0;
+    setExplanationLoadingMessage(messages[0]);
+    const interval = setInterval(() => {
+      index = (index + 1) % messages.length;
+      setExplanationLoadingMessage(messages[index]);
+    }, 2500);
+    return () => clearInterval(interval);
+  }, [isLoadingExplanation, quizLanguage, langName]);
+
   useEffect(() => {
     if (topicName && exerciseName && subject && profile) {
       const fetchQuestions = async () => {
+        let translationStarted = false;
         try {
           // Start tracking exercise
           if (moduleId && topicId && exerciseId) {
@@ -101,103 +123,55 @@ export function QuestionsPage() {
             }),
           });
 
-          if (!response.ok || !response.body) {
-            throw new Error(`HTTP error! status: ${response.status}`);
+          if (!response.ok) {
+            const errorData = await response.json().catch(() => null);
+            throw new Error(errorData?.message || `HTTP error! status: ${response.status}`);
           }
 
-          // Consume SSE stream for progressive question delivery
-          const reader = response.body.getReader();
-          const decoder = new TextDecoder();
-          let sseBuffer = '';
-          const receivedQuestions: AIQuestion[] = [];
-          let translationStarted = false;
+          setLoadingMessage('NAANO is crafting your quiz...');
 
-          while (true) {
-            const { done, value } = await reader.read();
-            if (done) break;
+          const data = await response.json();
 
-            sseBuffer += decoder.decode(value, { stream: true });
-
-            // Process complete SSE lines
-            const lines = sseBuffer.split('\n');
-            sseBuffer = lines.pop() || ''; // Keep incomplete line in buffer
-
-            for (const line of lines) {
-              if (!line.startsWith('data: ')) continue;
-              const data = line.slice(6).trim();
-              if (data === '[DONE]') continue;
-
-              try {
-                const event = JSON.parse(data);
-
-                switch (event.type) {
-                  case 'status':
-                    if (event.message === 'Checking question pool...') {
-                      setLoadingMessage('NAANO is checking your question bank...');
-                    } else if (event.message === 'Generating questions...') {
-                      setLoadingMessage('NAANO is crafting your quiz...');
-                    }
-                    break;
-
-                  case 'question': {
-                    const q: AIQuestion = {
-                      id: event.question.id || `gen-${sessionId}-${event.index}`,
-                      question_text: event.question.questionText || event.question.question_text,
-                      options: event.question.options,
-                      correct_answer: event.question.correctAnswer || event.question.correct_answer,
-                      difficulty: (event.question.difficulty || 'medium') as 'easy' | 'medium' | 'hard',
-                    };
-                    receivedQuestions.push(q);
-                    setGeneratedQuestions([...receivedQuestions]);
-
-                    // Update message as questions stream in
-                    if (receivedQuestions.length === 1) {
-                      setLoadingMessage('NAANO is picking the best questions...');
-                    }
-
-                    // For English: show quiz immediately on first question
-                    // For local language: keep spinner until translation completes
-                    if (receivedQuestions.length === 1 && !langParam) {
-                      setIsLoading(false);
-                    }
-                    break;
-                  }
-
-                  case 'done':
-                    if (langParam && !translationStarted) {
-                      translationStarted = true;
-                      setLoadingMessage(`NAANO is writing your quiz in ${langName}...`);
-                      translateQuestionsInBackground(receivedQuestions, langParam);
-                    } else if (!langParam) {
-                      setIsLoading(false);
-                    }
-                    break;
-
-                  case 'error':
-                    throw new Error(event.message);
-                }
-              } catch (parseError) {
-                // Skip malformed SSE lines
-                if (parseError instanceof SyntaxError) continue;
-                throw parseError;
-              }
-            }
+          if (data.error) {
+            throw new Error(data.message || 'Failed to generate questions');
           }
+
+          const receivedQuestions: AIQuestion[] = (data.questions || []).map(
+            (q: any, index: number) => ({
+              id: q.id || `gen-${sessionId}-${index}`,
+              question_text: q.questionText || q.question_text,
+              options: q.options,
+              correct_answer: q.correctAnswer || q.correct_answer,
+              difficulty: (q.difficulty || 'medium') as 'easy' | 'medium' | 'hard',
+            })
+          );
 
           if (receivedQuestions.length === 0) {
             setHasError(true);
             showToast('Failed to generate questions. Please try again.', 'error', 5000);
+          } else {
+            setGeneratedQuestions(receivedQuestions);
+
+            if (langParam && !translationStarted) {
+              translationStarted = true;
+              setLoadingMessage(`NAANO is writing your quiz in ${langName}...`);
+              translateQuestionsInBackground(receivedQuestions, langParam);
+            } else {
+              setIsLoading(false);
+            }
           }
-        } catch (error) {
+        } catch (error: any) {
           console.error('Error fetching questions:', error);
           setHasError(true);
-          showToast('An error occurred while generating questions. Please try again.', 'error', 5000);
-          // Navigate back after showing error
-          setTimeout(() => {
-            navigate(-1);
-          }, 3000);
+          const msg = error?.message || 'An error occurred while generating questions. Please try again.';
+          showToast(msg, 'error', 5000);
         } finally {
-          setIsLoading(false);
+          // When a local language is selected, translateQuestionsInBackground
+          // handles setIsLoading(false) after translation completes.
+          // Only set it here if translation was never started.
+          if (!translationStarted) {
+            setIsLoading(false);
+          }
         }
       };
 
@@ -723,14 +697,22 @@ export function QuestionsPage() {
           <p className="text-gray-600 dark:text-gray-400 text-center max-w-md">
             NAANO couldn't generate questions right now. Please try again.
           </p>
-          <Button
-            onClick={() => navigate(-1)}
-            variant="outline"
-            className="mt-2"
-          >
-            <ChevronLeft className="h-4 w-4 mr-1" />
-            Go Back
-          </Button>
+          <div className="flex gap-3 mt-2">
+            <Button
+              onClick={() => navigate(-1)}
+              variant="outline"
+            >
+              <ChevronLeft className="h-4 w-4 mr-1" />
+              Go Back
+            </Button>
+            <Button
+              onClick={() => window.location.reload()}
+              variant="default"
+              className="bg-ghana-green hover:bg-ghana-green/90"
+            >
+              Try Again
+            </Button>
+          </div>
         </div>
       </AppLayout>
     );
@@ -900,6 +882,8 @@ export function QuestionsPage() {
                           setShowNaanoExplanation(true);
                           setIsLoadingExplanation(true);
                           setNaanoExplanation('');
+                          setNaanoExplanationEnglish('');
+                          setShowExplanationInEnglish(false);
 
                           try {
                             const response = await fetch('/api/naano/explain-answer', {
@@ -913,47 +897,19 @@ export function QuestionsPage() {
                                 options: currentQuestion.options,
                                 subject: subject,
                                 grade: profile?.grade_level,
+                                language: quizLanguage,
                               }),
                             });
 
-                            if (!response.ok) {
-                              throw new Error('Failed to get explanation');
+                            const data = await response.json();
+
+                            if (!response.ok || data.error) {
+                              setNaanoExplanation(data?.message || "Oops! NAANO ran into a small problem. Please try again in a moment!");
+                              return;
                             }
 
-                            const reader = response.body?.getReader();
-                            const decoder = new TextDecoder();
-                            let accumulatedText = '';
-
-                            if (reader) {
-                              while (true) {
-                                const { done, value } = await reader.read();
-                                if (done) break;
-
-                                const chunk = decoder.decode(value, { stream: true });
-                                const lines = chunk.split('\n');
-
-                                for (const line of lines) {
-                                  if (line.startsWith('data: ')) {
-                                    const data = line.slice(6);
-                                    if (data === '[DONE]') continue;
-
-                                    try {
-                                      const parsed = JSON.parse(data);
-                                      if (parsed.type === 'error') {
-                                        setNaanoExplanation(parsed.message || "Oops! NAANO ran into a small problem. Please try again in a moment!");
-                                        return;
-                                      }
-                                      if (parsed.type === 'content' && parsed.text) {
-                                        accumulatedText += parsed.text;
-                                        setNaanoExplanation(accumulatedText);
-                                      }
-                                    } catch (e) {
-                                      // Ignore parse errors
-                                    }
-                                  }
-                                }
-                              }
-                            }
+                            setNaanoExplanationEnglish(data.explanation || '');
+                            setNaanoExplanation(data.translatedExplanation || data.explanation || '');
                           } catch (error) {
                             console.error('Error getting explanation:', error);
                             setNaanoExplanation('Sorry, I had trouble explaining this answer. Please try again later.');
@@ -1008,19 +964,42 @@ export function QuestionsPage() {
         <Dialog open={showNaanoExplanation} onOpenChange={setShowNaanoExplanation}>
           <DialogContent className="max-w-2xl max-h-[80vh] overflow-y-auto liquid-glass border border-white/20">
             <DialogHeader>
-              <DialogTitle className="text-2xl font-bold flex items-center gap-2">
-                <Sparkles className={isMathematics ? 'text-amber-400' : 'text-emerald-400'} />
-                NAANO's Explanation
-              </DialogTitle>
+              <div className="flex items-center justify-between">
+                <DialogTitle className="text-2xl font-bold flex items-center gap-2">
+                  <Sparkles className={isMathematics ? 'text-amber-400' : 'text-emerald-400'} />
+                  NAANO's Explanation
+                </DialogTitle>
+                {quizLanguage && langInfo && naanoExplanationEnglish && naanoExplanation !== naanoExplanationEnglish && !isLoadingExplanation && (
+                  <button
+                    onClick={() => setShowExplanationInEnglish(!showExplanationInEnglish)}
+                    className="flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-semibold transition-all border border-white/20 bg-white/5 hover:bg-white/10 text-gray-300 hover:text-white"
+                  >
+                    <Languages className="h-3.5 w-3.5" />
+                    {showExplanationInEnglish ? 'EN' : langInfo.name}
+                  </button>
+                )}
+              </div>
             </DialogHeader>
 
             <div className="space-y-4">
               {/* Question Context */}
               <div className="liquid-glass-option border border-white/10 rounded-lg p-4">
                 <p className="text-sm text-gray-400 mb-2">Question:</p>
-                <p className="text-white font-medium">{currentQuestion.question_text}</p>
+                <p className="text-white font-medium">
+                  {quizLanguage && translations?.[currentQuestionIndex] && !showExplanationInEnglish
+                    ? translations[currentQuestionIndex].questionText
+                    : currentQuestion.question_text}
+                </p>
                 <p className="text-sm text-emerald-400 mt-3 font-semibold">
-                  Correct Answer: {currentQuestion.correct_answer}
+                  Correct Answer: {(() => {
+                    if (quizLanguage && translations?.[currentQuestionIndex] && !showExplanationInEnglish) {
+                      const correctIdx = currentQuestion.options.indexOf(currentQuestion.correct_answer);
+                      return correctIdx >= 0 && translations[currentQuestionIndex].options[correctIdx]
+                        ? translations[currentQuestionIndex].options[correctIdx]
+                        : currentQuestion.correct_answer;
+                    }
+                    return currentQuestion.correct_answer;
+                  })()}
                 </p>
               </div>
 
@@ -1029,7 +1008,7 @@ export function QuestionsPage() {
                 {isLoadingExplanation ? (
                   <div className="flex flex-col items-center justify-center py-8">
                     <Loader2 className="h-10 w-10 animate-spin text-blue-400 mb-3" />
-                    <p className="text-gray-400">NAANO is thinking...</p>
+                    <p className="text-gray-400 transition-opacity duration-300">{explanationLoadingMessage}</p>
                   </div>
                 ) : naanoExplanation ? (
                   <div className="prose prose-invert prose-sm max-w-none">
@@ -1048,7 +1027,7 @@ export function QuestionsPage() {
                         hr: ({node, ...props}) => <hr className="border-white/10 my-6" {...props} />,
                       }}
                     >
-                      {naanoExplanation}
+                      {showExplanationInEnglish ? naanoExplanationEnglish : naanoExplanation}
                     </ReactMarkdown>
                   </div>
                 ) : (

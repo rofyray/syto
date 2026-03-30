@@ -10,12 +10,12 @@ const KHAYA_API_KEY = process.env.KHAYA_API_KEY || '';
 const TRANSLATION_BASE_URL = 'https://translation-api.ghananlp.org/v1';
 const TTS_BASE_URL = 'https://translation-api.ghananlp.org/tts/v2';
 
-const CONCURRENCY_LIMIT = 5;
+const CONCURRENCY_LIMIT = 2;
 
 /**
  * Translate a single text via the Khaya API with 1 retry.
  */
-async function translateSingleText(text: string, langPair: string, retries = 1): Promise<string> {
+export async function translateSingleText(text: string, langPair: string, retries = 2): Promise<string> {
   for (let attempt = 0; attempt <= retries; attempt++) {
     try {
       const response = await fetch(`${TRANSLATION_BASE_URL}/translate`, {
@@ -29,7 +29,7 @@ async function translateSingleText(text: string, langPair: string, retries = 1):
 
       if (response.status === 429 && attempt < retries) {
         // Rate limited — wait briefly and retry
-        await new Promise(r => setTimeout(r, 500));
+        await new Promise(r => setTimeout(r, 1500));
         continue;
       }
 
@@ -38,8 +38,13 @@ async function translateSingleText(text: string, langPair: string, retries = 1):
         throw new Error(`Translation API error (${response.status}): ${errText}`);
       }
 
-      const translated = await response.text();
-      return translated.trim();
+      let translated = await response.text();
+      translated = translated.trim();
+      // Khaya API returns JSON-encoded strings with surrounding quotes
+      if (translated.startsWith('"') && translated.endsWith('"')) {
+        translated = translated.slice(1, -1);
+      }
+      return translated;
     } catch (err) {
       if (attempt < retries) continue;
       throw err;
@@ -58,6 +63,10 @@ async function translateWithConcurrency(
   results: string[]
 ): Promise<void> {
   for (let i = 0; i < texts.length; i += CONCURRENCY_LIMIT) {
+    // Delay between batches to avoid API rate limiting
+    if (i > 0) {
+      await new Promise(r => setTimeout(r, 800));
+    }
     const batch = texts.slice(i, i + CONCURRENCY_LIMIT);
     const batchResults = await Promise.all(
       batch.map(async ({ originalIndex, text }) => {

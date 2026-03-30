@@ -64,7 +64,7 @@ export function AuthSelection() {
                   {/* Description */}
                   <p className="text-muted-foreground mb-6">
                     Already have an account?<br />
-                    Log in to access your content.
+                    Log in to access your learning content.
                   </p>
 
                   {/* Button */}
@@ -101,7 +101,7 @@ export function AuthSelection() {
                   {/* Description */}
                   <p className="text-muted-foreground mb-6">
                     New here? Create an account and<br />
-                    start your preparation journey.
+                    start your learning journey.
                   </p>
 
                   {/* Button */}

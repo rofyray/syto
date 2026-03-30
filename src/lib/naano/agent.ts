@@ -10,10 +10,22 @@ import type { NAANORequest, NAANOResponse, AnthropicMessageParam, AnthropicToolU
  * NAANO AI Agent
  * Claude-powered educational assistant for Ghanaian primary students
  */
+interface StudentContext {
+  studentName: string;
+  grade: number;
+  curriculumSummary: string;
+}
+
+interface ModuleWithTopics {
+  title: string;
+  topics?: { title: string }[];
+}
+
 export class NAANOAgent {
   private client: Anthropic;
   private conversationHistory: AnthropicMessageParam[] = [];
   private systemPrompt: string;
+  private studentContext?: StudentContext;
 
   constructor(private modelOverride?: string) {
     // Validate configuration
@@ -56,6 +68,31 @@ export class NAANOAgent {
   }
 
   /**
+   * Set student context (name, grade, curriculum) for personalized responses
+   */
+  setStudentContext(ctx: {
+    studentName: string;
+    grade: number;
+    mathModules: ModuleWithTopics[];
+    englishModules: ModuleWithTopics[];
+  }): void {
+    const formatModules = (modules: ModuleWithTopics[]) =>
+      modules.map(m => {
+        const topicNames = m.topics?.map(t => t.title).join(', ') || 'No topics';
+        return `  - ${m.title}: ${topicNames}`;
+      }).join('\n');
+
+    const mathSection = formatModules(ctx.mathModules) || '  (none available)';
+    const englishSection = formatModules(ctx.englishModules) || '  (none available)';
+
+    this.studentContext = {
+      studentName: ctx.studentName,
+      grade: ctx.grade,
+      curriculumSummary: `Mathematics modules:\n${mathSection}\n\nEnglish modules:\n${englishSection}`,
+    };
+  }
+
+  /**
    * Get system prompt as content blocks with cache_control
    * Base prompt is cached (ephemeral, 5-min TTL) to reduce input token costs
    */
@@ -81,10 +118,29 @@ export class NAANOAgent {
         return [baseBlock];
     }
 
-    return [
+    const blocks: Anthropic.TextBlockParam[] = [
       baseBlock,
       { type: 'text', text: rolePrompt },
     ];
+
+    if (this.studentContext) {
+      blocks.push({
+        type: 'text',
+        text: `## CURRENT STUDENT CONTEXT
+You are currently helping ${this.studentContext.studentName}, a Primary ${this.studentContext.grade} student.
+Do NOT ask the student what grade they are in — you already know they are in Primary ${this.studentContext.grade}.
+Address them by name occasionally to make the conversation personal.
+
+## AVAILABLE CURRICULUM FOR PRIMARY ${this.studentContext.grade}
+The following modules and topics are available in the student's curriculum. Use this to guide your responses and keep content at the appropriate level:
+
+${this.studentContext.curriculumSummary}
+
+When suggesting topics to study or offering practice, refer to these specific modules and topics.`,
+      });
+    }
+
+    return blocks;
   }
 
   /**

@@ -1,7 +1,10 @@
 import express, { Request, Response } from 'express';
 import { getNAANOAgent, createNAANOAgent } from '../../lib/naano/index.js';
 import { NAANORequestSchema } from '../../lib/naano/types.js';
-import { getQuestionsForStudent, streamQuestionsForStudent } from '../../lib/question-bank.js';
+import { getQuestionsForStudent } from '../../lib/question-bank.js';
+import { translateSingleText } from './khaya-routes.js';
+import { getCachedTranslation, setCachedTranslation } from '../../lib/redis.js';
+import { getModulesWithChildren } from '../../lib/supabase.js';
 import { z } from 'zod';
 
 const router = express.Router();
@@ -39,11 +42,34 @@ function getUserFriendlyErrorMessage(error: any): string {
 }
 
 /**
+ * Race a promise against a timeout. Ensures we can respond before
+ * Netlify kills the function (26s max).
+ */
+function withTimeout<T>(promise: Promise<T>, ms: number): Promise<T> {
+  const timeout = new Promise<never>((_, reject) =>
+    setTimeout(() => reject(new Error('timeout')), ms)
+  );
+  return Promise.race([promise, timeout]);
+}
+
+/**
+ * Strip markdown formatting from text so it renders cleanly as plain text.
+ */
+function stripMarkdown(text: string): string {
+  return text
+    .replace(/\*\*(.+?)\*\*/g, '$1')    // **bold** -> bold
+    .replace(/\*(.+?)\*/g, '$1')        // *italic* -> italic
+    .replace(/__(.+?)__/g, '$1')        // __bold__ -> bold
+    .replace(/_(.+?)_/g, '$1')          // _italic_ -> italic
+    .replace(/^#{1,6}\s+/gm, '')        // # headers -> plain text
+    .replace(/`([^`]+)`/g, '$1');       // `code` -> code
+}
+
+/**
  * POST /api/naano/chat
- * Chat with NAANO AI (streaming)
+ * Chat with NAANO AI
  */
 router.post('/chat', async (req: Request, res: Response) => {
-  // Validate before setting SSE headers so we can return proper JSON errors
   let request;
   try {
     request = NAANORequestSchema.parse({
@@ -58,39 +84,44 @@ router.post('/chat', async (req: Request, res: Response) => {
       res.status(400).json({ error: 'Validation error', details: error.errors });
       return;
     }
-    res.status(500).json({ error: 'Internal server error' });
+    res.status(500).json({ error: true, message: 'Internal server error' });
     return;
   }
 
-  // Set up Server-Sent Events for streaming
-  res.setHeader('Content-Type', 'text/event-stream');
-  res.setHeader('Cache-Control', 'no-cache');
-  res.setHeader('Connection', 'keep-alive');
-  res.setHeader('X-Accel-Buffering', 'no');
-
   try {
+    const grade = request.grade;
+    const studentName = req.body.studentName || 'Student';
+
+    // Fetch curriculum modules for both subjects (cached 10min)
+    const [mathModules, englishModules] = await Promise.all([
+      getModulesWithChildren(grade, 'mathematics'),
+      getModulesWithChildren(grade, 'english'),
+    ]);
+
     const naano = createNAANOAgent();
-    let fullResponse = '';
+    naano.setStudentContext({ studentName, grade, mathModules, englishModules });
+    const response = await withTimeout(naano.processRequest(request), 20_000);
 
-    for await (const chunk of naano.processRequestStream(request)) {
-      fullResponse += chunk;
-      res.write(`data: ${JSON.stringify({ chunk, fullResponse })}\n\n`);
-    }
-
-    res.write('data: [DONE]\n\n');
-    res.end();
+    res.json({
+      response: stripMarkdown(response.content as string),
+      metadata: response.metadata,
+    });
   } catch (error: any) {
-    console.error('Error in chat endpoint:', error);
+    console.error(JSON.stringify({
+      level: 'error',
+      endpoint: '/chat',
+      errorMessage: error?.message,
+      errorStatus: error?.status,
+      timestamp: new Date().toISOString(),
+    }));
     const friendlyMessage = getUserFriendlyErrorMessage(error);
-    res.write(`data: ${JSON.stringify({ type: 'error', message: friendlyMessage })}\n\n`);
-    res.write('data: [DONE]\n\n');
-    res.end();
+    res.status(500).json({ error: true, message: friendlyMessage });
   }
 });
 
 /**
  * POST /api/naano/generate-questions
- * Stream curriculum-aligned questions using SSE for progressive delivery.
+ * Generate curriculum-aligned questions.
  * Pulls from existing pool first; only calls LLM if not enough questions exist.
  */
 router.post('/generate-questions', async (req: Request, res: Response) => {
@@ -98,39 +129,44 @@ router.post('/generate-questions', async (req: Request, res: Response) => {
 
   if (!topic || !subject || !grade) {
     res.status(400).json({
-      error: 'Missing required fields: topic, subject, grade',
+      error: true,
+      message: 'Missing required fields: topic, subject, grade',
     });
     return;
   }
 
-  // Set up Server-Sent Events for streaming
-  res.setHeader('Content-Type', 'text/event-stream');
-  res.setHeader('Cache-Control', 'no-cache');
-  res.setHeader('Connection', 'keep-alive');
-  res.setHeader('X-Accel-Buffering', 'no');
-
   try {
-    const stream = streamQuestionsForStudent({
-      userId: userId || (req as any).userId,
+    const result = await withTimeout(
+      getQuestionsForStudent({
+        userId: userId || (req as any).userId,
+        topic,
+        subject,
+        grade: parseInt(grade),
+        difficulty: difficulty || 'medium',
+        count: count || 5,
+      }),
+      20_000,
+    );
+
+    res.json({
+      questions: result.questions,
+      fromPool: result.fromPool,
+      newlyGenerated: result.newlyGenerated,
+      metadata: result.metadata,
+    });
+  } catch (error: any) {
+    console.error(JSON.stringify({
+      level: 'error',
+      endpoint: '/generate-questions',
+      errorMessage: error?.message,
+      errorStatus: error?.status,
       topic,
       subject,
-      grade: parseInt(grade),
-      difficulty: difficulty || 'medium',
-      count: count || 5,
-    });
-
-    for await (const event of stream) {
-      res.write(`data: ${JSON.stringify(event)}\n\n`);
-    }
-
-    res.write('data: [DONE]\n\n');
-    res.end();
-  } catch (error: any) {
-    console.error('Error streaming questions:', error);
+      grade,
+      timestamp: new Date().toISOString(),
+    }));
     const friendlyMessage = getUserFriendlyErrorMessage(error);
-    res.write(`data: ${JSON.stringify({ type: 'error', message: friendlyMessage })}\n\n`);
-    res.write('data: [DONE]\n\n');
-    res.end();
+    res.status(500).json({ error: true, message: friendlyMessage });
   }
 });
 
@@ -165,19 +201,24 @@ router.post('/explain', async (req: Request, res: Response) => {
       metadata: response.metadata,
     });
   } catch (error: any) {
-    console.error('Error explaining concept:', error);
+    console.error(JSON.stringify({
+      level: 'error',
+      endpoint: '/explain',
+      errorMessage: error?.message,
+      timestamp: new Date().toISOString(),
+    }));
 
     if (error instanceof z.ZodError) {
       res.status(400).json({
-        error: 'Validation error',
+        error: true,
+        message: 'Validation error',
         details: error.errors,
       });
       return;
     }
 
-    res.status(500).json({
-      error: error.message || 'Internal server error',
-    });
+    const friendlyMessage = getUserFriendlyErrorMessage(error);
+    res.status(500).json({ error: true, message: friendlyMessage });
   }
 });
 
@@ -217,32 +258,38 @@ Please provide encouraging feedback on the student's answer. If incorrect, expla
       metadata: response.metadata,
     });
   } catch (error: any) {
-    console.error('Error validating answer:', error);
+    console.error(JSON.stringify({
+      level: 'error',
+      endpoint: '/validate-answer',
+      errorMessage: error?.message,
+      timestamp: new Date().toISOString(),
+    }));
 
     if (error instanceof z.ZodError) {
       res.status(400).json({
-        error: 'Validation error',
+        error: true,
+        message: 'Validation error',
         details: error.errors,
       });
       return;
     }
 
-    res.status(500).json({
-      error: error.message || 'Internal server error',
-    });
+    const friendlyMessage = getUserFriendlyErrorMessage(error);
+    res.status(500).json({ error: true, message: friendlyMessage });
   }
 });
 
 /**
  * POST /api/naano/explain-answer
- * Explain why an answer is correct (streaming)
+ * Explain why an answer is correct
  */
 router.post('/explain-answer', async (req: Request, res: Response) => {
-  const { question, correctAnswer, options, subject, grade } = req.body;
+  const { question, correctAnswer, options, subject, grade, language } = req.body;
 
   if (!question || !correctAnswer || !subject || !grade) {
     res.status(400).json({
-      error: 'Missing required fields: question, correctAnswer, subject, grade',
+      error: true,
+      message: 'Missing required fields: question, correctAnswer, subject, grade',
     });
     return;
   }
@@ -266,34 +313,50 @@ Use simple language appropriate for grade ${grade}. Include ONE brief Ghanaian e
     });
   } catch (error: any) {
     if (error instanceof z.ZodError) {
-      res.status(400).json({ error: 'Validation error', details: error.errors });
+      res.status(400).json({ error: true, message: 'Validation error', details: error.errors });
       return;
     }
-    res.status(500).json({ error: 'Internal server error' });
+    res.status(500).json({ error: true, message: 'Internal server error' });
     return;
   }
 
-  // Set up Server-Sent Events for streaming
-  res.setHeader('Content-Type', 'text/event-stream');
-  res.setHeader('Cache-Control', 'no-cache');
-  res.setHeader('Connection', 'keep-alive');
-  res.setHeader('X-Accel-Buffering', 'no');
-
   try {
     const naano = createNAANOAgent();
+    const response = await withTimeout(naano.processRequest(request), 20_000);
 
-    for await (const chunk of naano.processRequestStream(request)) {
-      res.write(`data: ${JSON.stringify({ type: 'content', text: chunk })}\n\n`);
+    const explanation = stripMarkdown(response.content as string);
+    let translatedExplanation: string | undefined;
+
+    // Translate explanation if a non-English language is requested
+    if (language && language !== 'en') {
+      try {
+        const cached = await getCachedTranslation(explanation, language);
+        if (cached) {
+          translatedExplanation = cached;
+        } else {
+          const langPair = `en-${language}`;
+          translatedExplanation = await translateSingleText(explanation, langPair);
+          setCachedTranslation(explanation, language, translatedExplanation);
+        }
+      } catch (translateError) {
+        console.warn('Translation of explanation failed, returning English only:', translateError);
+      }
     }
 
-    res.write('data: [DONE]\n\n');
-    res.end();
+    res.json({
+      explanation,
+      translatedExplanation,
+      metadata: response.metadata,
+    });
   } catch (error: any) {
-    console.error('Error explaining answer:', error);
+    console.error(JSON.stringify({
+      level: 'error',
+      endpoint: '/explain-answer',
+      errorMessage: error?.message,
+      timestamp: new Date().toISOString(),
+    }));
     const friendlyMessage = getUserFriendlyErrorMessage(error);
-    res.write(`data: ${JSON.stringify({ type: 'error', message: friendlyMessage })}\n\n`);
-    res.write('data: [DONE]\n\n');
-    res.end();
+    res.status(500).json({ error: true, message: friendlyMessage });
   }
 });
 

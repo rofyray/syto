@@ -13,10 +13,16 @@ import khayaRoutes from '../routes/khaya-routes.js';
 // Initialize Express app
 const app = express();
 
-// CORS configuration
+// CORS configuration — explicit origins required when credentials are enabled
+const allowedOrigins = [
+  process.env.FRONTEND_URL,
+  'http://localhost:5173',
+  'http://localhost:3000',
+].filter(Boolean) as string[];
+
 const corsOptions = {
-  origin: '*', // In production, this should be restricted
-  credentials: true,
+  origin: allowedOrigins.length > 0 ? allowedOrigins : '*',
+  credentials: allowedOrigins.length > 0,
   methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
   allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With']
 };
@@ -71,20 +77,41 @@ const serverlessHandler = serverless(app);
 
 // Export the handler for Netlify Functions
 export const handler: Handler = async (event, context) => {
-  // Return the serverless handler
+  const start = Date.now();
+
+  console.log(JSON.stringify({
+    level: 'info',
+    type: 'request_start',
+    method: event.httpMethod,
+    path: event.path,
+    timestamp: new Date().toISOString(),
+  }));
+
   const result = await serverlessHandler(event, context);
-  // Ensure we return a valid HandlerResponse
+
+  const statusCode = (typeof result === 'object' && result !== null && 'statusCode' in result)
+    ? (result as any).statusCode
+    : result ? 200 : 404;
+
+  console.log(JSON.stringify({
+    level: statusCode >= 400 ? 'error' : 'info',
+    type: 'request_end',
+    method: event.httpMethod,
+    path: event.path,
+    statusCode,
+    durationMs: Date.now() - start,
+    timestamp: new Date().toISOString(),
+  }));
+
   if (!result) {
     return {
       statusCode: 404,
-      body: JSON.stringify({ error: 'Not found' })
+      body: JSON.stringify({ error: true, message: 'Not found' })
     };
   }
-  // Ensure the result has the required HandlerResponse properties
   if (typeof result === 'object' && result !== null && 'statusCode' in result) {
-    return result as any; // Safe to cast as we've verified it has statusCode
+    return result as any;
   }
-  // Fallback if result is not a valid HandlerResponse
   return {
     statusCode: 200,
     body: typeof result === 'string' ? result : JSON.stringify(result)

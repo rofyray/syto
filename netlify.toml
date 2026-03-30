@@ -5,6 +5,12 @@
   publish = "dist"
   functions = "dist-api/functions"
 
+[functions]
+  node_bundler = "esbuild"
+
+[functions."api"]
+  timeout = 26
+
 # Redirect API requests to Netlify Functions
 [[redirects]]
   from = "/api/*"

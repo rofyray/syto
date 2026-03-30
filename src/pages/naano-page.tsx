@@ -4,15 +4,90 @@ import { AppLayout } from "@/components/layout/app-layout";
 import { Button } from "@/components/ui/button";
 import { useAuthStore } from "@/stores/auth-store";
 import { useNaanoStore, type ChatMessage } from "@/stores/naano-store";
+import { getModulesWithChildren, type Module } from "@/lib/supabase";
 
 // Use local NAANO image from public folder
 import naanoImage from "/naano.png";
+
+/** Grade-specific fallback suggestions based on actual curriculum topics */
+const FALLBACK_SUGGESTIONS: Record<number, string[]> = {
+  4: [
+    "Can you explain whole numbers and decimals to me?",
+    "What are nouns and pronouns and how do I use them?",
+    "How do I read a pictograph or bar chart?",
+  ],
+  5: [
+    "How do I add fractions with different denominators?",
+    "Can you teach me about prefixes and suffixes?",
+    "Help me understand how to calculate perimeter and area.",
+  ],
+  6: [
+    "Can you explain percentages and ratios to me?",
+    "What is reported speech and how do I use it?",
+    "How do I find the mean, median, and mode of numbers?",
+  ],
+};
+
+/** Build 3 suggested questions from actual curriculum topics */
+function buildSuggestions(mathModules: Module[], englishModules: Module[], grade: number): string[] {
+  // Collect all topics with their subject label
+  const allTopics: { title: string; subject: 'mathematics' | 'english' }[] = [];
+  for (const m of mathModules) {
+    for (const t of (m as any).topics || []) {
+      allTopics.push({ title: t.title || t.content, subject: 'mathematics' });
+    }
+  }
+  for (const m of englishModules) {
+    for (const t of (m as any).topics || []) {
+      allTopics.push({ title: t.title || t.content, subject: 'english' });
+    }
+  }
+
+  if (allTopics.length === 0) {
+    return FALLBACK_SUGGESTIONS[grade] || FALLBACK_SUGGESTIONS[5];
+  }
+
+  // Shuffle and pick up to 3 distinct topics (try to mix subjects)
+  const shuffled = allTopics.sort(() => Math.random() - 0.5);
+  const picked: typeof allTopics = [];
+  const usedSubjects = new Set<string>();
+  for (const t of shuffled) {
+    if (picked.length >= 3) break;
+    // Prefer mixing subjects if possible
+    if (picked.length < 2 || usedSubjects.size >= 2 || !usedSubjects.has(t.subject)) {
+      picked.push(t);
+      usedSubjects.add(t.subject);
+    }
+  }
+  // Fill remaining if we're short
+  for (const t of shuffled) {
+    if (picked.length >= 3) break;
+    if (!picked.includes(t)) picked.push(t);
+  }
+
+  const mathTemplates = [
+    (topic: string) => `Can you explain ${topic} to me?`,
+    (topic: string) => `Help me understand ${topic} with examples.`,
+    (topic: string) => `How do I solve ${topic} problems?`,
+  ];
+  const englishTemplates = [
+    (topic: string) => `What is ${topic} and how do I use it?`,
+    (topic: string) => `Can you teach me about ${topic}?`,
+    (topic: string) => `Help me understand ${topic} with examples.`,
+  ];
+
+  return picked.map((t, i) => {
+    const templates = t.subject === 'mathematics' ? mathTemplates : englishTemplates;
+    return templates[i % templates.length](t.title);
+  });
+}
 
 export function NAANOPage() {
   const { profile } = useAuthStore();
   const { messages, addMessage, updateLastMessage } = useNaanoStore();
   const [message, setMessage] = useState("");
   const [isRecording, setIsRecording] = useState(false);
+  const [suggestions, setSuggestions] = useState<string[]>([]);
   const [isProcessing, setIsProcessing] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const greetingSentRef = useRef(false);
@@ -30,6 +105,19 @@ export function NAANOPage() {
     }
   }, [profile, messages.length, addMessage]);
   
+  // Fetch curriculum topics to build dynamic suggestions
+  useEffect(() => {
+    const grade = profile?.grade_level || 5;
+    Promise.all([
+      getModulesWithChildren(grade, 'mathematics'),
+      getModulesWithChildren(grade, 'english'),
+    ]).then(([math, english]) => {
+      setSuggestions(buildSuggestions(math, english, grade));
+    }).catch(() => {
+      setSuggestions(FALLBACK_SUGGESTIONS[grade] || FALLBACK_SUGGESTIONS[5]);
+    });
+  }, [profile?.grade_level]);
+
   // Auto-scroll to bottom on new messages
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
@@ -51,7 +139,6 @@ export function NAANOPage() {
     setIsProcessing(true);
 
     try {
-      // Call Claude-powered NAANO API with streaming
       const response = await fetch('/api/naano/chat', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -59,64 +146,40 @@ export function NAANOPage() {
           content: userMessage.content,
           subject: 'mathematics',
           grade: profile?.grade_level || 5,
+          studentName: profile?.first_name || profile?.username || 'Student',
         }),
       });
 
-      if (!response.body || !response.ok) {
-        throw new Error('Server error');
+      const data = await response.json();
+
+      if (!response.ok || data.error) {
+        addMessage({
+          id: Date.now().toString(),
+          content: data?.message || "Oops! NAANO ran into a small problem. Please try again in a moment!",
+          sender: 'naano',
+          timestamp: new Date().toISOString(),
+        });
+        return;
       }
 
-      const reader = response.body.getReader();
-      const decoder = new TextDecoder();
-      let naanoResponseText = '';
-      let naanoMessageAdded = false;
+      // Add the complete response — simulate typing effect by progressively revealing text
+      const fullText = typeof data.response === 'string' ? data.response : JSON.stringify(data.response);
+      const messageId = `naano-${Date.now()}`;
 
-      while (true) {
-        const { done, value } = await reader.read();
-        if (done) break;
+      addMessage({
+        id: messageId,
+        content: '',
+        sender: 'naano',
+        timestamp: new Date().toISOString(),
+      });
 
-        const chunk = decoder.decode(value);
-        const lines = chunk.split('\n');
-
-        for (const line of lines) {
-          if (line.startsWith('data: ')) {
-            const data = line.slice(6);
-            if (data === '[DONE]') break;
-
-            try {
-              const parsed = JSON.parse(data);
-
-              if (parsed.type === 'error') {
-                addMessage({
-                  id: Date.now().toString(),
-                  content: parsed.message || "Oops! NAANO ran into a small problem. Please try again in a moment!",
-                  sender: 'naano',
-                  timestamp: new Date().toISOString(),
-                });
-                return;
-              }
-
-              if (parsed.chunk) {
-                naanoResponseText += parsed.chunk;
-
-                if (!naanoMessageAdded) {
-                  addMessage({
-                    id: `naano-${Date.now()}`,
-                    content: naanoResponseText,
-                    sender: 'naano',
-                    timestamp: new Date().toISOString(),
-                  });
-                  naanoMessageAdded = true;
-                } else {
-                  updateLastMessage(naanoResponseText);
-                }
-              }
-            } catch {
-              // Skip invalid JSON
-            }
-          }
-        }
+      // Reveal text progressively for a natural feel
+      const chunkSize = 8;
+      for (let i = 0; i < fullText.length; i += chunkSize) {
+        updateLastMessage(fullText.slice(0, i + chunkSize));
+        await new Promise(r => setTimeout(r, 15));
       }
+      updateLastMessage(fullText);
     } catch (error) {
       console.error('Error sending message:', error);
       addMessage({
@@ -338,28 +401,15 @@ export function NAANOPage() {
                 <div className="w-full mt-6">
                   <h3 className="text-lg font-semibold mb-2">Try asking:</h3>
                   <div className="space-y-2">
-                    <Button
-                      className="w-full justify-start text-left bg-ghana-green/10 hover:bg-ghana-green/20 text-ghana-green-dark border-2 border-ghana-green/30 hover:border-ghana-green/50 dark:bg-ghana-gold/10 dark:hover:bg-ghana-gold/20 dark:text-ghana-gold-dark dark:border-ghana-gold/30 dark:hover:border-ghana-gold/50 rounded-xl shadow-sm hover:shadow-md transition-all"
-                      onClick={() => setMessage("Can you explain fractions to me?")}
-                    >
-                      Can you explain fractions to me?
-                    </Button>
-                    <Button
-                      className="w-full justify-start text-left bg-ghana-green/10 hover:bg-ghana-green/20 text-ghana-green-dark border-2 border-ghana-green/30 hover:border-ghana-green/50 dark:bg-ghana-gold/10 dark:hover:bg-ghana-gold/20 dark:text-ghana-gold-dark dark:border-ghana-gold/30 dark:hover:border-ghana-gold/50 rounded-xl shadow-sm hover:shadow-md transition-all"
-                      onClick={() =>
-                        setMessage("What are adjectives and how do I use them?")
-                      }
-                    >
-                      What are adjectives and how do I use them?
-                    </Button>
-                    <Button
-                      className="w-full justify-start text-left bg-ghana-green/10 hover:bg-ghana-green/20 text-ghana-green-dark border-2 border-ghana-green/30 hover:border-ghana-green/50 dark:bg-ghana-gold/10 dark:hover:bg-ghana-gold/20 dark:text-ghana-gold-dark dark:border-ghana-gold/30 dark:hover:border-ghana-gold/50 rounded-xl shadow-sm hover:shadow-md transition-all"
-                      onClick={() =>
-                        setMessage("Help me solve this word problem about market prices.")
-                      }
-                    >
-                      Help me solve this word problem.
-                    </Button>
+                    {suggestions.map((suggestion, i) => (
+                      <Button
+                        key={i}
+                        className="w-full justify-start text-left whitespace-normal h-auto py-3 bg-ghana-green/10 hover:bg-ghana-green/20 text-ghana-green-dark border-2 border-ghana-green/30 hover:border-ghana-green/50 dark:bg-ghana-gold/10 dark:hover:bg-ghana-gold/20 dark:text-ghana-gold-dark dark:border-ghana-gold/30 dark:hover:border-ghana-gold/50 rounded-xl shadow-sm hover:shadow-md transition-all"
+                        onClick={() => setMessage(suggestion)}
+                      >
+                        {suggestion}
+                      </Button>
+                    ))}
                   </div>
                 </div>
               </div>
