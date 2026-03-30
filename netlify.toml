@@ -3,7 +3,7 @@
 [build]
   command = "npm run build:all"
   publish = "dist"
-  functions = "dist-api/functions"
+  functions = "dist-api/api/functions"
 
 [functions]
   node_bundler = "esbuild"
