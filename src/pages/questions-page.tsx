@@ -125,7 +125,7 @@ export function QuestionsPage() {
 
           if (!response.ok) {
             const errorData = await response.json().catch(() => null);
-            throw new Error(errorData?.message || `HTTP error! status: ${response.status}`);
+            throw new Error(errorData?.message || 'NAANO is having trouble right now. Please try again in a moment.');
           }
 
           setLoadingMessage('NAANO is crafting your quiz...');

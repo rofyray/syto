@@ -79,6 +79,13 @@ const serverlessHandler = serverless(app);
 export const handler: Handler = async (event, context) => {
   const start = Date.now();
 
+  // Normalize Netlify rewrite path back to /api/...
+  // Netlify redirects /api/* → /.netlify/functions/api/:splat, which changes event.path
+  // serverless-http passes event.path directly to Express, so we must restore the original path
+  if (event.path.startsWith('/.netlify/functions/api')) {
+    event.path = '/api' + event.path.substring('/.netlify/functions/api'.length);
+  }
+
   console.log(JSON.stringify({
     level: 'info',
     type: 'request_start',
