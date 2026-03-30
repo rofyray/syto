@@ -36,7 +36,7 @@ export class NAANOAgent {
     // Initialize Anthropic client with timeout and retries
     this.client = new Anthropic({
       apiKey: process.env.ANTHROPIC_API_KEY!,
-      timeout: 120_000,
+      timeout: 23_000,
       maxRetries: NAANO_CONFIG.errorHandling.maxRetries,
     });
 

@@ -491,19 +491,8 @@ Return ONLY valid JSON in this exact format:
       generation_hash: generateQuestionHash(subject, grade, topic, q.questionText || q.question_text),
     }));
 
-    // Dedup: filter out questions that already exist in the pool
-    const hashes = questionsWithHashes.map(q => q.generation_hash);
-    const existingHashes = await getExistingQuestionHashes(hashes);
-    const newQuestions = questionsWithHashes.filter(
-      q => !existingHashes.includes(q.generation_hash)
-    );
-
-    if (newQuestions.length === 0) {
-      return [];
-    }
-
-    // Return questions immediately with temp IDs (don't block on DB save)
-    const questionsToReturn = newQuestions.map((q, i) => ({
+    // Return questions immediately with temp IDs (don't block on dedup or DB save)
+    const questionsToReturn = questionsWithHashes.map((q, i) => ({
       id: `temp-${crypto.randomUUID()}`,
       question_text: q.question_text,
       options: q.options,
@@ -517,8 +506,16 @@ Return ONLY valid JSON in this exact format:
       created_at: new Date().toISOString(),
     } as Question));
 
-    // Save to pool in background (non-blocking) — questions are already returned to user
-    savePoolQuestions(newQuestions).catch(err => console.error('Background pool save failed:', err));
+    // Dedup + save to pool in background (non-blocking)
+    const hashes = questionsWithHashes.map(q => q.generation_hash);
+    getExistingQuestionHashes(hashes)
+      .then(existingHashes => {
+        const newQuestions = questionsWithHashes.filter(
+          q => !existingHashes.includes(q.generation_hash)
+        );
+        if (newQuestions.length > 0) return savePoolQuestions(newQuestions);
+      })
+      .catch(err => console.error('Background pool save failed:', err));
 
     // Log the generation (non-blocking)
     const processingTime = Date.now() - startTime;

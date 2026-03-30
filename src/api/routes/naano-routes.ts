@@ -100,7 +100,7 @@ router.post('/chat', async (req: Request, res: Response) => {
 
     const naano = createNAANOAgent();
     naano.setStudentContext({ studentName, grade, mathModules, englishModules });
-    const response = await withTimeout(naano.processRequest(request), 20_000);
+    const response = await withTimeout(naano.processRequest(request), 24_000);
 
     res.json({
       response: stripMarkdown(response.content as string),
@@ -145,7 +145,7 @@ router.post('/generate-questions', async (req: Request, res: Response) => {
         difficulty: difficulty || 'medium',
         count: count || 5,
       }),
-      20_000,
+      24_000,
     );
 
     res.json({
@@ -322,7 +322,7 @@ Use simple language appropriate for grade ${grade}. Include ONE brief Ghanaian e
 
   try {
     const naano = createNAANOAgent();
-    const response = await withTimeout(naano.processRequest(request), 20_000);
+    const response = await withTimeout(naano.processRequest(request), 24_000);
 
     const explanation = stripMarkdown(response.content as string);
     let translatedExplanation: string | undefined;
