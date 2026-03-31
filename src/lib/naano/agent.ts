@@ -52,9 +52,9 @@ export class NAANOAgent {
   private getModel(requestType: NAANORequest['type']): string {
     if (this.modelOverride) return this.modelOverride;
     switch (requestType) {
-      case 'generate_questions':
       case 'validate_answer':
         return NAANO_CONFIG.models.primary;
+      case 'generate_questions':
       default:
         return NAANO_CONFIG.models.fast;
     }
