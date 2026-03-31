@@ -62,6 +62,9 @@ async function translateWithConcurrency(
   targetLang: string,
   results: string[]
 ): Promise<void> {
+  let failCount = 0;
+  let lastError: Error | null = null;
+
   for (let i = 0; i < texts.length; i += CONCURRENCY_LIMIT) {
     // Delay between batches to avoid API rate limiting
     if (i > 0) {
@@ -73,15 +76,22 @@ async function translateWithConcurrency(
         try {
           const translation = await translateSingleText(text, langPair);
           setCachedTranslation(text, targetLang, translation);
-          return { originalIndex, translation };
-        } catch (err) {
-          console.warn(`Translation failed for index ${originalIndex}, using original`);
-          return { originalIndex, translation: text };
+          return { originalIndex, translation, failed: false };
+        } catch (err: any) {
+          failCount++;
+          lastError = err;
+          console.warn(`Translation failed for index ${originalIndex}:`, err?.message);
+          return { originalIndex, translation: text, failed: true };
         }
       })
     );
     for (const { originalIndex, translation } of batchResults) {
       results[originalIndex] = translation;
+    }
+
+    // If all translations in the first batch failed, stop early (likely auth/API issue)
+    if (i === 0 && batchResults.every(r => r.failed)) {
+      throw lastError || new Error('Translation service unavailable');
     }
   }
 }

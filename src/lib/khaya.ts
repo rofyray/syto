@@ -15,15 +15,15 @@ export async function translateTexts(
     });
 
     if (!response.ok) {
-      console.error('Translation request failed:', response.status);
-      return texts; // Graceful fallback: return original texts
+      const errData = await response.json().catch(() => null);
+      throw new Error(errData?.error || `Translation failed (${response.status})`);
     }
 
     const data = await response.json();
     return data.translations || texts;
   } catch (error) {
     console.error('Translation error:', error);
-    return texts; // Graceful fallback
+    throw error;
   }
 }
 
