@@ -100,6 +100,8 @@ export function QuestionsPage() {
 
   useEffect(() => {
     if (topicName && exerciseName && subject && profile) {
+      const controller = new AbortController();
+
       const fetchQuestions = async () => {
         let translationStarted = false;
         try {
@@ -113,6 +115,7 @@ export function QuestionsPage() {
             headers: {
               'Content-Type': 'application/json',
             },
+            signal: controller.signal,
             body: JSON.stringify({
               topic: topicName,
               subject: subject,
@@ -161,6 +164,7 @@ export function QuestionsPage() {
             }
           }
         } catch (error: any) {
+          if (error?.name === 'AbortError') return;
           console.error('Error fetching questions:', error);
           setHasError(true);
           const msg = error?.message || 'An error occurred while generating questions. Please try again.';
@@ -169,16 +173,17 @@ export function QuestionsPage() {
           // When a local language is selected, translateQuestionsInBackground
           // handles setIsLoading(false) after translation completes.
           // Only set it here if translation was never started.
-          if (!translationStarted) {
+          if (!controller.signal.aborted && !translationStarted) {
             setIsLoading(false);
           }
         }
       };
 
       fetchQuestions();
+      return () => controller.abort();
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [topicName, exerciseName, subject, profile, moduleId, topicId, exerciseId, sessionId]);
+  }, [topicName, exerciseName, subject, profile?.id, moduleId, topicId, exerciseId, sessionId]);
 
   const handleAnswerSelect = (questionIndex: number, answer: string) => {
     setSelectedAnswers(prev => ({ ...prev, [questionIndex]: answer }));
@@ -850,7 +855,15 @@ export function QuestionsPage() {
                           {(questionTries[currentQuestionIndex] || 0) === 1 ? (
                             <p className="text-sm mt-1 opacity-90">Try again!</p>
                           ) : (
-                            <p className="text-sm mt-1 opacity-90">The correct answer is: <span className="font-bold">{currentQuestion.correct_answer}</span></p>
+                            <p className="text-sm mt-1 opacity-90">The correct answer is: <span className="font-bold">{(() => {
+                              if (quizLanguage && translations?.[currentQuestionIndex]) {
+                                const correctIdx = currentQuestion.options.indexOf(currentQuestion.correct_answer);
+                                if (correctIdx >= 0 && translations[currentQuestionIndex].options[correctIdx]) {
+                                  return translations[currentQuestionIndex].options[correctIdx];
+                                }
+                              }
+                              return currentQuestion.correct_answer;
+                            })()}</span></p>
                           )}
                         </div>
                       </>
@@ -870,7 +883,18 @@ export function QuestionsPage() {
                       <div className="flex-1">
                         <h3 className="text-lg font-bold mb-2 text-white">Answer Description</h3>
                         <p className="text-gray-300 text-sm leading-relaxed">
-                          {currentQuestion.correct_answer} is the correct answer because it represents the most direct and efficient solution to this question. The other options don't fully address the requirements presented in the question.
+                          {(() => {
+                            const translatedAnswer = (() => {
+                              if (quizLanguage && translations?.[currentQuestionIndex]) {
+                                const correctIdx = currentQuestion.options.indexOf(currentQuestion.correct_answer);
+                                if (correctIdx >= 0 && translations[currentQuestionIndex].options[correctIdx]) {
+                                  return translations[currentQuestionIndex].options[correctIdx];
+                                }
+                              }
+                              return currentQuestion.correct_answer;
+                            })();
+                            return `${translatedAnswer} is the correct answer because it represents the most direct and efficient solution to this question. The other options don't fully address the requirements presented in the question.`;
+                          })()}
                         </p>
                       </div>
                     </div>

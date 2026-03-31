@@ -2,7 +2,7 @@ import express, { Request, Response } from 'express';
 import { getNAANOAgent, createNAANOAgent } from '../../lib/naano/index.js';
 import { NAANORequestSchema } from '../../lib/naano/types.js';
 import { getQuestionsForStudent } from '../../lib/question-bank.js';
-import { translateSingleText } from './khaya-routes.js';
+import { translateSingleText, translateBatchWithHaiku } from './khaya-routes.js';
 import { getCachedTranslation, setCachedTranslation } from '../../lib/redis.js';
 import { getModulesWithChildren } from '../../lib/supabase.js';
 import { z } from 'zod';
@@ -334,12 +334,18 @@ Use simple language appropriate for grade ${grade}. Include ONE brief Ghanaian e
         if (cached) {
           translatedExplanation = cached;
         } else {
-          const langPair = `en-${language}`;
-          translatedExplanation = await translateSingleText(explanation, langPair);
+          // Try Khaya first, fall back to Haiku
+          try {
+            const langPair = `en-${language}`;
+            translatedExplanation = await translateSingleText(explanation, langPair);
+          } catch {
+            const [haikuResult] = await translateBatchWithHaiku([explanation], language);
+            translatedExplanation = haikuResult;
+          }
           setCachedTranslation(explanation, language, translatedExplanation);
         }
       } catch (translateError) {
-        console.warn('Translation of explanation failed, returning English only:', translateError);
+        console.warn('Translation of explanation failed:', translateError);
       }
     }
 

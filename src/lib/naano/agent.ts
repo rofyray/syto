@@ -262,6 +262,9 @@ When suggesting topics to study or offering practice, refer to these specific mo
       temperature: NAANO_CONFIG.temperature,
       system: systemBlocks,
       messages: [{ role: 'user', content }],
+    }, {
+      timeout: 20_000,
+      maxRetries: 0,
     });
 
     const textBlock = response.content.find(
@@ -296,6 +299,9 @@ When suggesting topics to study or offering practice, refer to these specific mo
       temperature: NAANO_CONFIG.temperature,
       system: systemBlocks,
       messages: [{ role: 'user', content }],
+    }, {
+      timeout: 20_000,
+      maxRetries: 0,
     });
 
     for await (const event of stream) {
