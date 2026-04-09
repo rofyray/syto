@@ -13,6 +13,12 @@ import khayaRoutes from '../routes/khaya-routes.js';
 // Initialize Express app
 const app = express();
 
+// Trust the first proxy hop so express-rate-limit can read req.ip from
+// X-Forwarded-For (Netlify Functions sit behind a reverse proxy). Without this,
+// rate-limit logs ERR_ERL_UNDEFINED_IP_ADDRESS / ERR_ERL_UNEXPECTED_X_FORWARDED_FOR
+// on every request. Mirrors src/api/server.ts:21 for the local Express server.
+app.set('trust proxy', 1);
+
 // CORS configuration — explicit origins required when credentials are enabled
 const allowedOrigins = [
   process.env.FRONTEND_URL,

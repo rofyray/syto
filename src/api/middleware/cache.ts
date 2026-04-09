@@ -61,11 +61,19 @@ export const cacheMiddleware = (ttl: number = 30 * 60 * 1000): RequestHandler =>
 };
 
 /**
- * Smart cache middleware for content generation
- * Uses different TTL based on content type and complexity
+ * Smart cache middleware for content generation.
+ * Uses different TTL based on content type. The type is inferred from req.path
+ * because the request bodies on the NAANO routes do not carry a `type` field.
  */
 export const smartCache: RequestHandler = async (req, res, next) => {
-  const { type } = req.body;
+  // Infer content type from the request path. Order matters: check more specific
+  // paths (e.g. /explain-answer) before less specific ones (/explain).
+  const type =
+    req.path.includes('/generate-questions') ? 'question' :
+    req.path.includes('/explain-answer')     ? 'explanation' :
+    req.path.includes('/explain')            ? 'explanation' :
+    req.path.includes('/validate-answer')    ? 'validation' :
+    'generic';
 
   // Determine TTL based on content type
   let ttlSeconds = 1800; // Default 30 minutes
@@ -74,14 +82,11 @@ export const smartCache: RequestHandler = async (req, res, next) => {
     case 'question':
       ttlSeconds = 3600; // 1 hour
       break;
-    case 'exercise':
-      ttlSeconds = 2700; // 45 minutes
+    case 'explanation':
+      ttlSeconds = 1800; // 30 minutes
       break;
-    case 'topic':
-      ttlSeconds = 7200; // 2 hours
-      break;
-    case 'module':
-      ttlSeconds = 14400; // 4 hours
+    case 'validation':
+      ttlSeconds = 1800; // 30 minutes
       break;
   }
 

@@ -163,6 +163,28 @@ export async function setCachedTranslation(text: string, lang: string, translati
 }
 
 // ============================================================================
+// KHAYA QUOTA COOLDOWN
+// ============================================================================
+
+const KHAYA_COOLDOWN_KEY = 'khaya:cooldown';
+
+/**
+ * Check whether the Khaya translation provider is currently in a quota cooldown.
+ * Returns true if a cooldown flag is set in Redis (i.e., we recently saw a 403).
+ */
+export async function getKhayaCooldown(): Promise<boolean> {
+  return (await cacheGet<number>(KHAYA_COOLDOWN_KEY)) !== null;
+}
+
+/**
+ * Mark Khaya as in quota cooldown for the given number of seconds.
+ * While set, callers should skip Khaya and use the Haiku fallback directly.
+ */
+export async function setKhayaCooldown(ttlSeconds: number): Promise<void> {
+  await cacheSet(KHAYA_COOLDOWN_KEY, Date.now(), ttlSeconds);
+}
+
+// ============================================================================
 // GENERIC REQUEST CACHE (for middleware)
 // ============================================================================
 

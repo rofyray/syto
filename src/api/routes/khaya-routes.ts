@@ -3,6 +3,8 @@ import Anthropic from '@anthropic-ai/sdk';
 import {
   getCachedTranslation,
   setCachedTranslation,
+  getKhayaCooldown,
+  setKhayaCooldown,
 } from '../../lib/redis.js';
 
 const router = express.Router();
@@ -18,8 +20,12 @@ const LANG_NAMES: Record<string, string> = {
   'fat': 'Fante', 'dag': 'Dagbani', 'gur': 'Gurune', 'kus': 'Kusaal',
 };
 
+export const KHAYA_QUOTA_EXHAUSTED = 'KHAYA_QUOTA_EXHAUSTED';
+
 /**
  * Translate a single text via the Khaya API with 1 retry.
+ * - Bounded by an 8s per-request fetch timeout so a hung Khaya call cannot eat the function budget.
+ * - On HTTP 403 the provider has run out of quota; throw a marked error and do NOT retry.
  */
 export async function translateSingleText(text: string, langPair: string, retries = 2): Promise<string> {
   for (let attempt = 0; attempt <= retries; attempt++) {
@@ -31,7 +37,16 @@ export async function translateSingleText(text: string, langPair: string, retrie
           'Ocp-Apim-Subscription-Key': KHAYA_API_KEY,
         },
         body: JSON.stringify({ in: text, lang: langPair }),
+        signal: AbortSignal.timeout(8000),
       });
+
+      if (response.status === 403) {
+        // Quota exhausted — do not retry, signal upstream to bail the whole batch.
+        const errText = await response.text().catch(() => 'Out of call volume quota');
+        const err = new Error(`Khaya quota exhausted (403): ${errText}`) as Error & { code?: string };
+        err.code = KHAYA_QUOTA_EXHAUSTED;
+        throw err;
+      }
 
       if (response.status === 429 && attempt < retries) {
         // Rate limited — wait briefly and retry
@@ -51,7 +66,9 @@ export async function translateSingleText(text: string, langPair: string, retrie
         translated = translated.slice(1, -1);
       }
       return translated;
-    } catch (err) {
+    } catch (err: any) {
+      // Quota errors are terminal — never retry.
+      if (err?.code === KHAYA_QUOTA_EXHAUSTED) throw err;
       if (attempt < retries) continue;
       throw err;
     }
@@ -114,6 +131,7 @@ async function translateWithConcurrency(
   results: string[]
 ): Promise<void> {
   let lastError: Error | null = null;
+  let quotaError: (Error & { code?: string }) | null = null;
 
   for (let i = 0; i < texts.length; i += CONCURRENCY_LIMIT) {
     // Delay between batches to avoid API rate limiting
@@ -129,6 +147,9 @@ async function translateWithConcurrency(
           return { originalIndex, translation, failed: false };
         } catch (err: any) {
           lastError = err;
+          if (err?.code === KHAYA_QUOTA_EXHAUSTED) {
+            quotaError = err;
+          }
           console.warn(`Khaya failed for index ${originalIndex}:`, err?.message);
           return { originalIndex, translation: text, failed: true };
         }
@@ -136,6 +157,11 @@ async function translateWithConcurrency(
     );
     for (const { originalIndex, translation } of batchResults) {
       results[originalIndex] = translation;
+    }
+
+    // Quota exhausted mid-run — bail the whole batch so the route handler can fall back to Haiku.
+    if (quotaError) {
+      throw quotaError;
     }
 
     // If all translations in the first batch failed, stop early (likely auth/quota issue)
@@ -187,15 +213,25 @@ router.post('/translate', async (req: Request, res: Response): Promise<void> => 
       return;
     }
 
-    // Try Khaya API first (only if API key is configured)
-    if (KHAYA_API_KEY) {
+    // Skip Khaya entirely while a quota cooldown is active — go straight to Haiku.
+    const khayaCoolingDown = await getKhayaCooldown();
+
+    // Try Khaya API first (only if API key is configured and we're not in cooldown)
+    if (KHAYA_API_KEY && !khayaCoolingDown) {
       try {
         await translateWithConcurrency(uncachedTexts, langPair, targetLang, results);
         res.json({ translations: results });
         return;
       } catch (khayaError: any) {
         console.warn('Khaya API failed, falling back to Haiku:', khayaError?.message);
+        // On quota exhaustion, set a 1h cooldown so subsequent requests skip Khaya entirely.
+        // (Khaya reports ~10 days, but a short TTL avoids being permanently stuck if ops top up.)
+        if (khayaError?.code === KHAYA_QUOTA_EXHAUSTED) {
+          await setKhayaCooldown(3600);
+        }
       }
+    } else if (khayaCoolingDown) {
+      console.log('Khaya in quota cooldown — using Haiku fallback directly');
     }
 
     // Fallback: translate uncached texts with Haiku (single fast API call)
